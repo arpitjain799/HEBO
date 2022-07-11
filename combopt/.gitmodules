@@ -1,0 +1,6 @@
+[submodule "libs/Absolut"]
+	path = libs/Absolut
+	url = https://github.com/csi-greifflab/Absolut
+[submodule "libs/benchmarks"]
+	path = libs/benchmarks
+	url = https://github.com/lsils/benchmarks
