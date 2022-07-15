@@ -30,6 +30,7 @@ class GeneticAlgorithm(OptimizerBase):
                  allow_repeating_suggestions: bool = False,
                  dtype: torch.dtype = torch.float32,
                  ):
+        #TODO: add TR, do cross-over and use mutation to bring the sample back in the TR if needs be or do rejection sampling otherwise
 
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_dims, \
             'Genetic Algorithm currently supports only nominal and ordinal variables'

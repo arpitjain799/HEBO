@@ -9,6 +9,7 @@
 
 import pandas as pd
 
+
 # TODO 'Result logger supports n_suggests==1 for now'
 class ResultsLogger:
 

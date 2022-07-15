@@ -175,6 +175,7 @@ class BoBase(OptimizerBase, ABC):
             if len(self.tr_manager.data_buffer) > self.n_init:
                 self.tr_manager.adjust_tr_radii(y)
             self.tr_manager.append(x, y)
+            self.tr_manager.adjust_tr_center()
 
         # update best x and y
         if self.best_y is None:

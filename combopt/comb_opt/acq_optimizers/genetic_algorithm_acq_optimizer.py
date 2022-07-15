@@ -28,6 +28,7 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                  ga_allow_repeating_x: bool = True,
                  dtype: torch.dtype = torch.float32,
                  ):
+        #TODO: Add TR: use the TR option from GeneticAlgorithm
         super(GeneticAlgoAcqOptimizer, self).__init__(search_space, dtype)
 
         self.ga_num_iter = ga_num_iter

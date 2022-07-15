@@ -29,10 +29,19 @@ class TrManagerBase(ABC):
         self.max_radii = {}
         self.init_radii = {}
         self.variable_types = []
-        #TODO: add center, add register center method
+        self._center = None
 
         self.search_space = search_space
         self.data_buffer = DataBuffer(search_space, 1, dtype)
+
+    def set_center(self, center: Optional[torch.Tensor]):
+        if center is None:
+            self._center = None
+        self._center = center.to(self.search_space.dtype)
+
+    @property
+    def center(self) -> Optional[torch.Tensor]:
+        return self._center.clone()
 
     def register_radius(self,
                         variable_type: str,
@@ -58,6 +67,8 @@ class TrManagerBase(ABC):
         for var_type in self.variable_types:
             self.radii[var_type] = self.init_radii[var_type]
 
+        self.center = None
+
     @abstractmethod
     def restart(self):
         pass
@@ -69,6 +80,13 @@ class TrManagerBase(ABC):
         :return:
         """
         pass
+
+    def adjust_tr_center(self, **kwargs):
+        """
+        Function used to update the TR center
+        :return:
+        """
+        self.set_center(self.data_buffer.x_min)
 
     @abstractmethod
     def guided_restart(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,

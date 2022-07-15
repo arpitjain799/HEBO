@@ -186,7 +186,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                     while not is_valid:
 
                         neighbour_nominal = self._mutate_nominal(x_nominal)
-                        if 0 <= hamming_distance(x_[self.search_space.nominal_dims], neighbour_nominal,  #TODO: Hamming distance should be computed w.r.t. center
+                        if 0 <= hamming_distance(x_[self.search_space.nominal_dims], neighbour_nominal,  #TODO: Hamming distance should be computed w.r.t. center (self.tr_manager.center)
                                                  normalize=False) <= self.tr_manager.radii['nominal']:
                             is_valid = True
                         else:

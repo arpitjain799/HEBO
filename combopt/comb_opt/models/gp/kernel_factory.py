@@ -233,29 +233,6 @@ def get_conditional_sequence_kernel(cond_kernel_type: str, seq_len: int, operato
             map_cat_to_kernel_ind=map_cat_to_kernel_ind,
             ard_num_dims=seq_len
         )
-    # TODO: remove this?
-    # elif cond_kernel_type == 'cond-prod-kernel':
-    #     # Define the conditional additive kernel
-    #     k_param = ConditionalAdditiveKernel(*param_kernels)
-    #
-    #     # Define the sequence and the parameter kernel
-    #     if seq_kern_name == 'ssk':
-    #         k_seq = ScaleKernel(
-    #             FastStringKernel(seq_len, alphabet_size=len(operator_space), device=device, max_subsequence_length=3))
-    #     elif seq_kern_name == 'transformed_overlap':
-    #         k_seq = ScaleKernel(TransformedCategorical(ard_num_dims=len(seq_indices)))
-    #     elif seq_kern_name == 'overlap':
-    #         k_seq = ScaleKernel(CategoricalOverlap(ard_num_dims=len(seq_indices)))
-    #     else:
-    #         raise ValueError()
-    #
-    #     # Define the conditional product kernel
-    #     kernel = ConditionalSeqKernel(
-    #         seq_kernel=k_seq,
-    #         conditional_additive_kernel=k_param,
-    #         seq_indices=seq_indices,
-    #         param_indices=param_indices
-    #     )
     else:
         raise ValueError(cond_kernel_type)
 

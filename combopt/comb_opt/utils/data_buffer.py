@@ -8,6 +8,7 @@
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
 from abc import ABC
+from typing import Optional
 
 import torch
 
@@ -55,6 +56,13 @@ class DataBuffer(ABC):
             return self._y.flatten().argmin().item()
         else:
             return 0
+
+    @property
+    def x_min(self) -> Optional[torch.Tensor]:
+        if len(self._y) > 0:
+            return self._x[self.y_argmin]
+        else:
+            return None
 
     def __len__(self) -> int:
         return len(self._y)

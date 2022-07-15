@@ -63,7 +63,7 @@ def get_num_tr_bounds(
                     raise ValueError(kernel)
 
             else:
-                if isinstance(kernel, (RBFKernel, MaternKernel)):
+                if hasattr(kernel, "lengthscale"):
                     weights = kernel.lengthscale.detach().cpu()
                 else:
                     raise ValueError(kernel)

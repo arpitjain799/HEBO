@@ -30,7 +30,7 @@ class SimulatedAnnealing(OptimizerBase):
                  dtype: torch.dtype = torch.float32,
                  ):
 
-        #TODO: add trust region manager
+        #TODO: add trust region manager, and use rejection sampling to suggest new point
         assert search_space.num_nominal == search_space.num_params, \
             'Simulated Annealing is currently implemented for nominal variables only'
 
