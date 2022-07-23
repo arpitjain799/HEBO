@@ -29,7 +29,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
 
     def __init__(self,
                  search_space: SearchSpace,
-                 tr_manager: TrManagerBase,
+                 tr_manager: Optional[TrManagerBase] = None,
                  n_iter: int = 50,
                  n_restarts: int = 3,
                  max_n_perturb_num: int = 20,
@@ -38,8 +38,13 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                  nominal_tol: int = 100,
                  dtype: torch.dtype = torch.float32
                  ):
-        #TODO: make TR optional, if None: set TR to be the entire space
         super(TrBasedInterleavedSearch, self).__init__(search_space, dtype)
+        # if TR manager is None: we set TR to be the entire space
+        if tr_manager is None:
+            tr_manager = TrManagerBase(search_space=search_space, dtype=search_space.dtype)
+            tr_manager.register_radius('numeric', 0, 1, 1)
+            tr_manager.register_radius('nominal', min_radius=0, max_radius=search_space.num_nominal + 1,
+                                       init_radius=search_space.num_nominal + 1)
 
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
@@ -186,7 +191,8 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                     while not is_valid:
 
                         neighbour_nominal = self._mutate_nominal(x_nominal)
-                        if 0 <= hamming_distance(x_[self.search_space.nominal_dims], neighbour_nominal,  #TODO: Hamming distance should be computed w.r.t. center (self.tr_manager.center)
+                        if 0 <= hamming_distance(x_[self.search_space.nominal_dims], neighbour_nominal,
+                                                 # TODO: Hamming distance should be computed w.r.t. center (self.tr_manager.center)
                                                  normalize=False) <= self.tr_manager.radii['nominal']:
                             is_valid = True
                         else:
