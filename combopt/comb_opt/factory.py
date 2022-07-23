@@ -15,6 +15,7 @@ import torch
 from comb_opt.search_space import SearchSpace
 from comb_opt.tasks import TaskBase, RandomTSP, PestControl, default_sfu_params_factory, SFU_FUNCTIONS, CDRH3Design, \
     MigSeqOpt
+from comb_opt.tasks.bayesmark.bayesmark_task import BayesmarkTask
 from comb_opt.tasks.rna_inverse_fold.rna_inverse_fold_task import RNAInverseFoldTask
 from comb_opt.tasks.rna_inverse_fold.utils import get_target_from_id, RNA_BASES
 
@@ -27,7 +28,6 @@ def _sfu_search_space_params_factory(variable_type: Union[str, List[str]], num_d
                                      **kwargs) \
         -> List[Union[Dict[str, Union[Union[str, float, int], Any]], Dict[str, Union[Union[str, object], Any]], Dict[
             str, Union[str, float, int]], Dict[str, Union[str, object]]]]:
-
     # Basic checks to ensure all arguments are correct
     assert isinstance(variable_type, str) or isinstance(variable_type, list)
     assert isinstance(num_dims, int) or isinstance(num_dims, list)
@@ -212,6 +212,14 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         binary_mode = kwargs.get("binary_mode", False)
         task = RNAInverseFoldTask(target=target, binary_mode=binary_mode)
         search_space = search_space_factory('rna_inverse_fold', dtype, target=target, binary_mode=binary_mode)
+
+    elif task_name == "bayesmark":
+        model_name = kwargs.get("model_name", "lasso")
+        metric = kwargs.get("metric", "mse")
+        database_id = kwargs.get("database_id", "boston")
+        seed = kwargs.get("seed", 0)
+        task = BayesmarkTask(model_name=model_name, metric=metric, database_id=database_id, seed=seed)
+        search_space = SearchSpace(params=task.params, dtype=dtype)
 
     elif "aig_optimization" in task_name:
         from comb_opt.tasks.eda_seq_opt.eda_seq_opt_task import EDASeqOptimization

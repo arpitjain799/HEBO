@@ -17,10 +17,6 @@ from gpytorch.kernels import Kernel, MaternKernel, RBFKernel, ScaleKernel
 from comb_opt.models.gp.kernels import DiffusionKernel, MixtureKernel, Overlap, TransformedOverlap, \
     SubStringKernel, ConditionalTransformedOverlapKernel
 from comb_opt.search_space import SearchSpace
-from comb_opt.tasks.eda_seq_opt.utils.utils_eda_search_space import get_active_dims
-from comb_opt.tasks.eda_seq_opt.utils.utils_operators import get_operator_space
-from comb_opt.tasks.eda_seq_opt.utils.utils_operators_hyp import get_operator_hyperparms_space
-
 
 def kernel_factory(kernel_name: str, active_dims: Optional[list] = None, use_ard: bool = True,
                    lengthscale_constraint: Optional[Interval] = None, outputscale_constraint: Optional[Interval] = None,
@@ -164,6 +160,11 @@ def get_conditional_sequence_kernel(cond_kernel_type: str, seq_len: int, operato
                                     seq_kern_name: str = 'transformed_overlap',
                                     nominal_kern_name: str = 'transformed_overlap', numeric_kern_name: str = 'mat52',
                                     device: torch.device = torch.device('cuda:0')):
+
+    from comb_opt.tasks.eda_seq_opt.utils.utils_eda_search_space import get_active_dims
+    from comb_opt.tasks.eda_seq_opt.utils.utils_operators_hyp import get_operator_hyperparms_space
+    from comb_opt.tasks.eda_seq_opt.utils.utils_operators import get_operator_space
+
     assert nominal_kern_name in ['overlap', 'transformed_overlap']
     assert numeric_kern_name in ['mat52', 'rbf']
 

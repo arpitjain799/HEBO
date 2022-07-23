@@ -42,11 +42,12 @@ Install the package itself
 - Random TSP
 
 ### Real-world
-- Antibody Design
+- Antibody Design  #TODO: put ("antibody_design" in parenthesis or indicate where to find arguments to run each task)
 - RNA Inverse Folding
 - EDA Sequence Optimisation (AIG sequence optimisation)
 - EDA Sequence and Parameter Optimisation (AIG sequence and parameter optimisation)
 - MIG Sequence Optimisation
+- Bayesmark hyperparameter tuning tasks
 
 ### How to access a task
 

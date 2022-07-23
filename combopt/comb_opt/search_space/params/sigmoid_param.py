@@ -13,32 +13,45 @@ import torch
 from comb_opt.search_space.params.param import Parameter
 
 
-class PowPara(Parameter):
+def logit(p: np.ndarray) -> np.ndarray:
+    return np.log(p / (1 - p))
+
+
+def sigmoid(x) -> np.ndarray:
+    return 1 / (1 + np.exp(-x))
+
+
+class SigmoidPara(Parameter):
+    """
+    Given specified lower range of Lb and Ub, the search is done in lb = logit(Lb), ub = logit(Ub)
+    """
+
     def __init__(self, param_dict: dict, dtype: torch.dtype):
         super().__init__(param_dict, dtype)
-        assert 0 < param_dict.get('lb') < param_dict.get('ub'), 'The lower and upper bound must be greater than 0'
-        self.base = param_dict.get('base', 10.)
-        self.lb = np.log(param_dict.get('lb')) / np.log(self.base)
-        self.ub = np.log(param_dict.get('ub')) / np.log(self.base)
+        assert 0 < param_dict.get('lb') < param_dict.get('ub') < 1, 'The lower and upper bound must be greater than 0'
+        self.original_ub = param_dict.get('ub')
+        self.original_lb = param_dict.get('lb')
+        self.lb = logit(self.original_lb)
+        self.ub = logit(self.original_ub)
 
     def sample(self, num=1):
         assert (num > 0)
-        return self.base ** np.random.uniform(self.lb, self.ub, num)
+        return sigmoid(np.random.uniform(self.lb, self.ub, num))
 
     def transform(self, x):
-        log_x = np.log(x) / np.log(self.base)
+        logit_x = logit(x)
 
         # Normalise
-        normalised_log_x = (log_x - self.lb) / (self.ub - self.lb)
+        normalised_logit_x = (logit_x - self.lb) / (self.ub - self.lb)
 
-        return torch.tensor(normalised_log_x, dtype=self.dtype)
+        return torch.tensor(normalised_logit_x, dtype=self.dtype)
 
     def inverse_transform(self, x):
-        x = x.cpu().numpy()
+        x = x.cpu().detach().numpy()
         # Un-normalise
-        log_x = (self.ub - self.lb) * x + self.lb
+        logit_x = (self.ub - self.lb) * x + self.lb
 
-        return self.base ** log_x
+        return sigmoid(logit_x)
 
     @property
     def is_disc(self) -> bool:

@@ -8,7 +8,7 @@
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
 from abc import ABC
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from comb_opt.search_space.params.ordinal_param import OrdinalPara
 from comb_opt.search_space.params.permutation_param import PermutationPara
 from comb_opt.search_space.params.pow_integer_param import PowIntegerPara
 from comb_opt.search_space.params.pow_param import PowPara
+from comb_opt.search_space.params.sigmoid_param import SigmoidPara
 from comb_opt.search_space.params.step_int_param import StepIntPara
 
 
@@ -35,6 +36,7 @@ class SearchSpace(ABC):
         # Register all parameter types
         self.param_types = {}
         self.register_param_type('pow', PowPara)
+        self.register_param_type('sigmoid', SigmoidPara)
         self.register_param_type('bool', BoolPara)
         self.register_param_type('num', NumericPara)
         self.register_param_type('int', IntegerPara)
@@ -85,7 +87,7 @@ class SearchSpace(ABC):
         """
         self.param_types[type_name] = para_class
 
-    def parse(self, params):
+    def parse(self, params: List[Dict]):
 
         for param_dict in params:
             assert (param_dict.get('type') in self.param_types), \
