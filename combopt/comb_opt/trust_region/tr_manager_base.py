@@ -37,7 +37,8 @@ class TrManagerBase(ABC):
     def set_center(self, center: Optional[torch.Tensor]):
         if center is None:
             self._center = None
-        self._center = center.to(self.search_space.dtype)
+        else:
+            self._center = center.to(self.search_space.dtype)
 
     @property
     def center(self) -> Optional[torch.Tensor]:
