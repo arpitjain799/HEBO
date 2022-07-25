@@ -22,10 +22,10 @@ import os
 import sys
 from pathlib import Path
 
-from comb_opt.optimizers import BOiLS
-
 ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
 sys.path[0] = ROOT_PROJECT
+
+from comb_opt.optimizers import BOiLS
 
 import torch
 

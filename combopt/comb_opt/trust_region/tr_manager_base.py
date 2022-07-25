@@ -67,7 +67,7 @@ class TrManagerBase(ABC):
         for var_type in self.variable_types:
             self.radii[var_type] = self.init_radii[var_type]
 
-        self.center = None
+        self.set_center(None)
 
     @abstractmethod
     def restart(self):

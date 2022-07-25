@@ -45,6 +45,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
             tr_manager.register_radius('numeric', 0, 1, 1)
             tr_manager.register_radius('nominal', min_radius=0, max_radius=search_space.num_nominal + 1,
                                        init_radius=search_space.num_nominal + 1)
+            tr_manager.set_center(center=search_space.transform(search_space.sample()))
 
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
@@ -129,8 +130,8 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
         dtype, device = model.dtype, model.device
 
         # Sample initialisation
-
-        x0, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x,
+        x_centre = x.clone()
+        x0, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
                                                                           search_space=self.search_space,
                                                                           tr_manager=self.tr_manager,
                                                                           n_points=self.n_restarts,
@@ -191,8 +192,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                     while not is_valid:
 
                         neighbour_nominal = self._mutate_nominal(x_nominal)
-                        if 0 <= hamming_distance(x_[self.search_space.nominal_dims], neighbour_nominal,
-                                                 # TODO: Hamming distance should be computed w.r.t. center (self.tr_manager.center)
+                        if 0 <= hamming_distance(x_centre[self.search_space.nominal_dims], neighbour_nominal,
                                                  normalize=False) <= self.tr_manager.radii['nominal']:
                             is_valid = True
                         else:
