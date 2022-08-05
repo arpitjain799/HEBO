@@ -73,3 +73,24 @@ def cartesian_neighbors(x: torch.Tensor, edge_mat_list: List[torch.Tensor]) -> t
         neighbor_list.append(nbd_i)
 
     return torch.cat(neighbor_list, dim=0)
+
+
+def cartesian_neighbors_center_attracted(x: torch.Tensor, edge_mat_list: List[torch.Tensor], x_center: torch.Tensor) -> torch.Tensor:
+    """
+    For given vertices, it returns all neighboring vertices on cartesian product of the graphs given by edge_mat_list
+    :param x: 1D Tensor
+    :param edge_mat_list:
+    :param x_center: to be selected, the neighbor must have hamming(x_neigh, x_center) <= hamming(x, x_center)
+    :return: 2d tensor in which each row is 1-hamming distance far from x
+    """
+    neighbor_list = []
+    for i in range(len(edge_mat_list)):
+        if x_center[i] == x[i]:
+            # cannot change this dim
+            continue
+        nbd_i_elm = edge_mat_list[i][x[i]].nonzero(as_tuple=False).squeeze(1)  # get indices of the connected cats
+        nbd_i = x.repeat((nbd_i_elm.numel(), 1))
+        nbd_i[:, i] = nbd_i_elm
+        neighbor_list.append(nbd_i)
+
+    return torch.cat(neighbor_list, dim=0)

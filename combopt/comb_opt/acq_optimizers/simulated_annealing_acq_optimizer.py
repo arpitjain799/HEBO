@@ -6,6 +6,7 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
+from typing import Optional
 
 import torch
 
@@ -14,6 +15,7 @@ from comb_opt.acq_optimizers import AcqOptimizerBase
 from comb_opt.models import ModelBase
 from comb_opt.optimizers.simulated_annealing import SimulatedAnnealing
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region import TrManagerBase
 from comb_opt.utils.data_buffer import DataBuffer
 
 
@@ -24,12 +26,14 @@ class SimulatedAnnealingAcqOptimizer(AcqOptimizerBase):
                  sa_num_iter: int = 500,
                  sa_init_temp: float = 1.,
                  sa_tolerance: int = 100,
+                 tr_manager: Optional[TrManagerBase] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
 
         self.sa_num_iter = sa_num_iter
         self.sa_init_temp = sa_init_temp
         self.sa_tolerance = sa_tolerance
+        self.tr_manager = tr_manager
 
         super(SimulatedAnnealingAcqOptimizer, self).__init__(search_space, dtype)
 
@@ -43,6 +47,7 @@ class SimulatedAnnealingAcqOptimizer(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 **kwargs
                  ) -> torch.Tensor:
 
         assert n_suggestions == 1, 'Simulated annealing acquisition optimizer does not support suggesting batches of data'
@@ -50,12 +55,15 @@ class SimulatedAnnealingAcqOptimizer(AcqOptimizerBase):
         dtype = model.dtype
         device = model.device
 
-        sa = SimulatedAnnealing(search_space=self.search_space,
-                                init_temp=self.sa_init_temp,
-                                tolerance=self.sa_tolerance,
-                                store_observations=True,
-                                allow_repeating_suggestions=False,
-                                dtype=dtype)
+        sa = SimulatedAnnealing(
+            search_space=self.search_space,
+            fixed_tr_manager=self.tr_manager,
+            init_temp=self.sa_init_temp,
+            tolerance=self.sa_tolerance,
+            store_observations=True,
+            allow_repeating_suggestions=False,
+            dtype=dtype
+        )
 
         sa.x_init.iloc[0:1] = self.search_space.inverse_transform(x.unsqueeze(0))
 

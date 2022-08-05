@@ -9,7 +9,7 @@
 
 import copy
 import os
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -18,7 +18,11 @@ from comb_opt.acq_funcs.acq_base import AcqBase
 from comb_opt.acq_optimizers.acq_optimizer_base import AcqOptimizerBase
 from comb_opt.models import ModelBase
 from comb_opt.search_space import SearchSpace
-from comb_opt.utils.graph_utils import cartesian_neighbors
+from comb_opt.trust_region import TrManagerBase
+from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
+from comb_opt.utils.discrete_vars_utils import get_discrete_choices
+from comb_opt.utils.distance_metrics import hamming_distance
+from comb_opt.utils.graph_utils import cartesian_neighbors, cartesian_neighbors_center_attracted
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
 
 
@@ -27,19 +31,28 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                  search_space: SearchSpace,
                  adjacency_mat_list: List[torch.FloatTensor],
                  n_vertices: np.array,
+                 tr_manager: Optional[TrManagerBase] = None,
                  n_random_vertices: int = 20000,
                  n_greedy_ascent_init: int = 20,
                  n_spray: int = 10,
                  max_n_ascent: float = float('inf'),
+                 max_n_perturb_num: int = 20,
                  dtype: torch.dtype = torch.float32,
                  ):
-
-        #TODO: add TR manager, sample initial points within the TR, during the greedy search we filter the points outside TR
 
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_params, \
             'The greedy descent acquisition optimizer only supports nominal and ordinal variables.'
 
         super(ExhaustiveLsAcqOptimizer, self).__init__(search_space, dtype)
+
+        self.tr_manager = tr_manager
+
+        self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
+        self.is_nominal = True if search_space.num_nominal > 0 else False
+        self.is_mixed = True if self.is_numeric and self.is_nominal else False
+        self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
+        self.discrete_choices = get_discrete_choices(search_space)
+        self.max_n_perturb_num = max_n_perturb_num
 
         self.n_spray = n_spray
         self.n_random_vertices = n_random_vertices
@@ -97,8 +110,23 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
 
         device, dtype = model.device, model.dtype
 
-        # Initial point selection
-        x_random = self.search_space.transform(self.search_space.sample(self.n_random_vertices)).to(dtype)
+        # Sample initial points
+        if self.tr_manager:
+            assert self.tr_manager.radii['nominal'] > 0, "Cannot suggest any neighbors, TR should have been restarted"
+            x_centre = x.clone()
+            x_random, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
+                                                                                    search_space=self.search_space,
+                                                                                    tr_manager=self.tr_manager,
+                                                                                    n_points=self.n_random_vertices,
+                                                                                    is_numeric=self.is_numeric,
+                                                                                    is_mixed=self.is_mixed,
+                                                                                    numeric_dims=self.numeric_dims,
+                                                                                    discrete_choices=self.discrete_choices,
+                                                                                    max_n_perturb_num=self.max_n_perturb_num,
+                                                                                    model=model,
+                                                                                    return_numeric_bounds=True)
+        else:
+            x_random = self.search_space.transform(self.search_space.sample(self.n_random_vertices)).to(dtype)
 
         x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
         shuffled_ind = list(range(x_neighbours.size(0)))
@@ -135,7 +163,13 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
 
         if x_next is None:  # Attempt to grab a neighbour of the suggested points
             for idx in indices:
-                neighbours = cartesian_neighbors(x_greedy_ascent[idx].long(), self.adjacency_mat_list)
+                if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
+                                                    normalize=False) >= self.tr_manager.radii['nominal']:
+                    neighbours = cartesian_neighbors_center_attracted(x_greedy_ascent[idx].long(),
+                                                                      self.adjacency_mat_list,
+                                                                      x_center=self.tr_manager.center)
+                else:
+                    neighbours = cartesian_neighbors(x_greedy_ascent[idx].long(), self.adjacency_mat_list)
                 for j in range(neighbours.size(0)):
                     if not torch.all(neighbours[j] == x_observed, dim=1).any():
                         x_next = neighbours[j: j + 1]
@@ -144,7 +178,20 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                     break
 
         if x_next is None:  # Else, suggest a random point
-            x_next = self.search_space.transform(self.search_space.sample(1))
+            if self.tr_manager:
+                x_next = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
+                                                              search_space=self.search_space,
+                                                              tr_manager=self.tr_manager,
+                                                              n_points=1,
+                                                              is_numeric=self.is_numeric,
+                                                              is_mixed=self.is_mixed,
+                                                              numeric_dims=self.numeric_dims,
+                                                              discrete_choices=self.discrete_choices,
+                                                              max_n_perturb_num=self.max_n_perturb_num,
+                                                              model=model,
+                                                              return_numeric_bounds=False)
+            else:
+                x_next = self.search_space.transform(self.search_space.sample(1))
 
         return x_next
 
@@ -163,7 +210,13 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         min_acq = acq_func(x, model, **acq_evaluate_kwargs)
 
         while n_ascent < self.max_n_descent:
-            x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
+            if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
+                                                    normalize=False) >= self.tr_manager.radii['nominal']:
+                # To get a neighbour in the TR, need to select a category matching the center category
+                x_neighbours = cartesian_neighbors_center_attracted(x.long(), self.adjacency_mat_list,
+                                                                    x_center=self.tr_manager.center).to(dtype)
+            else:
+                x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
             with torch.no_grad():
                 acq_neighbours = acq_func(x_neighbours, model, **acq_evaluate_kwargs)
 
