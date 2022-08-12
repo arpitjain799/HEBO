@@ -7,12 +7,17 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 import torch
 
 from comb_opt.optimizers.optimizer_base import OptimizerBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region.tr_manager_base import TrManagerBase
+from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
+from comb_opt.utils.distance_metrics import hamming_distance
 
 
 class GeneticAlgorithm(OptimizerBase):
@@ -28,9 +33,9 @@ class GeneticAlgorithm(OptimizerBase):
                  num_elite: int = 10,
                  store_observations: bool = True,
                  allow_repeating_suggestions: bool = False,
+                 tr_manager: Optional[TrManagerBase] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
-        #TODO: add TR, do cross-over and use mutation to bring the sample back in the TR if needs be or do rejection sampling otherwise
 
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_dims, \
             'Genetic Algorithm currently supports only nominal and ordinal variables'
@@ -42,6 +47,11 @@ class GeneticAlgorithm(OptimizerBase):
         self.num_elite = num_elite
         self.store_observations = store_observations
         self.allow_repeating_suggestions = allow_repeating_suggestions
+        if tr_manager is not None:
+            assert 'nominal' in tr_manager.radii, 'Trust Region manager must contain a radius for nominal variables'
+            assert tr_manager.center is not None, 'Trust Region does not have a centre. Call tr_manager.set_center(center) to set one.'
+        self.tr_manager = tr_manager
+        self.tr_center = None if tr_manager is None else tr_manager.center
 
         # Ensure that the number of elite samples is even
         if self.num_elite % 2 != 0:
@@ -58,7 +68,35 @@ class GeneticAlgorithm(OptimizerBase):
         self.x_elite = None
         self.y_elite = None
 
-        self.x_queue = search_space.sample(self.pop_size)
+        # If there is a trust region manager, sample the initial population within a trust region of the centre
+        if self.tr_manager is not None:
+            self.x_queue = pd.DataFrame(index=range(self.pop_size), columns=self.search_space.df_col_names, dtype=float)
+            tr_centre = self.tr_manager.center
+
+            # check if the trust region manager has a centre
+            self.x_queue.iloc[0: 1] = self.search_space.inverse_transform(self.tr_center.unsqueeze(0))
+
+            # Sample remaining points in the trust region of the new centre
+            if self.pop_size - 1 > 0:
+                # Sample the remaining points
+                x_in_tr = sample_numeric_and_nominal_within_tr(x_centre=tr_centre,
+                                                               search_space=self.search_space,
+                                                               tr_manager=self.tr_manager,
+                                                               n_points=self.pop_size - 1,
+                                                               is_numeric=False,
+                                                               is_mixed=False,
+                                                               numeric_dims=[],
+                                                               discrete_choices=[],
+                                                               max_n_perturb_num=0,
+                                                               model=None,
+                                                               return_numeric_bounds=False)
+
+                # Store them
+                self.x_queue.iloc[1: self.pop_size] = self.search_space.inverse_transform(x_in_tr)
+
+        # Else, sample a random population
+        else:
+            self.x_queue = search_space.sample(self.pop_size)
 
         self.map_to_canonical = self.search_space.nominal_dims + self.search_space.ordinal_dims
         self.map_to_original = [self.map_to_canonical.index(i) for i in range(len(self.map_to_canonical))]
@@ -112,7 +150,7 @@ class GeneticAlgorithm(OptimizerBase):
         n_remaining = n_suggestions
         x_next = pd.DataFrame(index=range(n_suggestions), columns=self.search_space.df_col_names, dtype=float)
 
-        # _x_init contains points from algorithm or trust region initialisation
+        # Get points from current population
         if n_remaining and len(self.x_queue):
             n = min(n_remaining, len(self.x_queue))
             x_next.iloc[idx: idx + n] = self.x_queue.iloc[idx: idx + n]
@@ -299,11 +337,34 @@ class GeneticAlgorithm(OptimizerBase):
         x1_ = x1.clone()
         x2_ = x2.clone()
 
-        # starts from 1 and end at num_dims - 1 to always perform a crossover
-        idx = np.random.randint(low=1, high=self.search_space.num_dims - 1)
+        if self.tr_manager is not None:
 
-        x1_[:idx] = x2[:idx]
-        x2_[:idx] = x1[:idx]
+            idx = np.random.randint(low=1, high=self.search_space.num_dims - 1)
+
+            x1_[:idx] = x2[:idx]
+            x2_[:idx] = x1[:idx]
+
+            d_x1 = hamming_distance(self.tr_center.unsqueeze(0), x1_.unsqueeze(0), False)[0]
+            d_x2 = hamming_distance(self.tr_center.unsqueeze(0), x2_.unsqueeze(0), False)[0]
+
+            if d_x1 > self.tr_manager.radii['nominal']:
+                # Project x1_ back to the trust region
+                mask = x1_ != self.tr_center
+                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x1.item() - self.tr_manager.radii['nominal'], replace=False)
+                x1_[indices] = self.tr_center[indices]
+
+            if d_x2 > self.tr_manager.radii['nominal']:
+                # Project x2_ back to the trust region
+                mask = x2_ != self.tr_center
+                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x2.item() - self.tr_manager.radii['nominal'], replace=False)
+                x2_[indices] = self.tr_center[indices]
+
+        else:
+            # starts from 1 and end at num_dims - 1 to always perform a crossover
+            idx = np.random.randint(low=1, high=self.search_space.num_dims - 1)
+
+            x1_[:idx] = x2[:idx]
+            x2_[:idx] = x1[:idx]
 
         return x1_, x2_
 
@@ -312,10 +373,27 @@ class GeneticAlgorithm(OptimizerBase):
             'Current mutate can\'t handle permutations'
 
         x_ = x.clone()[:, self.map_to_canonical]
-        for i in range(len(x)):
-            idx = np.random.randint(low=0, high=self.search_space.num_dims)
-            categories = np.array([j for j in range(int(self.lb[idx]), int(self.ub[idx])) if j != x[i, idx]])
-            x_[i, idx] = np.random.choice(categories)
+
+        if self.tr_manager is not None:
+
+            for i in range(len(x)):
+                done = False
+                while not done:
+                    cand = x_[i].clone()
+                    idx = np.random.randint(low=0, high=self.search_space.num_dims)
+                    categories = np.array([j for j in range(int(self.lb[idx]), int(self.ub[idx])) if j != x[i, idx]])
+                    cand[idx] = np.random.choice(categories)
+                    if hamming_distance(self.tr_center.unsqueeze(0), cand.unsqueeze(0), False) <= self.tr_manager.radii[
+                        'nominal']:
+                        done = True
+                        x_[i] = cand
+
+        else:
+
+            for i in range(len(x)):
+                idx = np.random.randint(low=0, high=self.search_space.num_dims)
+                categories = np.array([j for j in range(int(self.lb[idx]), int(self.ub[idx])) if j != x[i, idx]])
+                x_[i, idx] = np.random.choice(categories)
 
         x_ = x_[:, self.map_to_original]
 

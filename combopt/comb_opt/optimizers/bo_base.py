@@ -103,7 +103,7 @@ class BoBase(OptimizerBase, ABC):
     def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
         if self.tr_manager is not None:
-            self.x_init = self.tr_manager.guided_restart(self.n_init,
+            self.x_init = self.tr_manager.suggest_new_tr(self.n_init,
                                                          self.x_init,
                                                          self.data_buffer,
                                                          self.data_buffer.y_min)

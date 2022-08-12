@@ -8,12 +8,14 @@
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
 import torch
+import warnings
 
 from comb_opt.acq_funcs import acq_factory
 from comb_opt.acq_optimizers.simulated_annealing_acq_optimizer import SimulatedAnnealingAcqOptimizer
 from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.search_space.params.bool_param import BoolPara
 
 
 class BOCS(BoBase):
@@ -37,6 +39,21 @@ class BOCS(BoBase):
                  device: torch.device = torch.device('cpu')
                  ):
         assert search_space.num_nominal == search_space.num_params, 'BOCS only supports nominal  variables.'
+
+        # Check if the problem is purely binary
+        binary_problem = True
+        for param_name in search_space.params:
+            binary_problem = binary_problem and isinstance(search_space.params[param_name], BoolPara)
+            if not binary_problem:
+                break
+
+        if binary_problem:
+            warning_message = 'This is the general form implementation of BOCS (see Appendix A of ' + \
+                              'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' +\
+                              'for purely binary problems. The differences are: (1) binary variables are ' +\
+                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' +\
+                              'in place of SDP.'
+            warnings.warn(warning_message, category=UserWarning)
 
         model = LinRegModel(search_space=search_space,
                             order=model_order,

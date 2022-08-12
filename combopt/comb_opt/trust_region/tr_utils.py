@@ -74,6 +74,7 @@ def get_num_tr_bounds(
 
         else:
             weights = 1.
+            weights = torch.tensor(1.)
 
             # continuous variables
         lb = torch.clip(x_num - weights.to(x_num) * tr_manager.radii['numeric'] / 2.0, 0.0, 1.0)
@@ -130,6 +131,9 @@ def sample_numeric_and_nominal_within_tr(
     nominal_non_seq_dims = [nominal_dim for nominal_dim in search_space.nominal_dims if nominal_dim not in seq_dims]
     if len(nominal_non_seq_dims) > 0:
         n_perturb_nominal = np.random.randint(low=0, high=tr_manager.radii['nominal'] + 1, size=n_points)
+        low = 0 if search_space.num_numeric > 0 else 1
+
+        n_perturb_nominal = np.random.randint(low=low, high=tr_manager.radii['nominal'] + 1, size=n_points)
 
         for i in range(n_points):
             for j in range(n_perturb_nominal[i]):
@@ -158,3 +162,4 @@ def sample_numeric_and_nominal_within_tr(
             return x_centre, None, None
     else:
         return x_centre
+

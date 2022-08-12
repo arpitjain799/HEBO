@@ -7,6 +7,8 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
+from typing import Optional
+
 import torch
 
 from comb_opt.acq_funcs import AcqBase
@@ -14,6 +16,7 @@ from comb_opt.acq_optimizers import AcqOptimizerBase
 from comb_opt.models import ModelBase
 from comb_opt.optimizers.genetic_algorithm import GeneticAlgorithm
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region.tr_manager_base import TrManagerBase
 
 
 class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
@@ -26,9 +29,10 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                  ga_num_elite: int = 10,
                  ga_store_x: bool = False,
                  ga_allow_repeating_x: bool = True,
+                 tr_manager: Optional[TrManagerBase] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
-        #TODO: Add TR: use the TR option from GeneticAlgorithm
+
         super(GeneticAlgoAcqOptimizer, self).__init__(search_space, dtype)
 
         self.ga_num_iter = ga_num_iter
@@ -37,9 +41,13 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
         self.ga_num_elite = ga_num_elite
         self.ga_store_x = ga_store_x
         self.ga_allow_repeating_x = ga_allow_repeating_x
+        self.tr_manager = tr_manager
 
         assert self.search_space.num_nominal + self.search_space.num_ordinal == self.search_space.num_dims, \
             'Genetic Algorithm currently supports only nominal and ordinal variables'
+
+        if self.tr_manager is not None:
+            assert 'nominal' in tr_manager.radii, 'The trust region manager must contain a lengthscale for nominal variables'
 
     def optimize(self, x: torch.Tensor,
                  n_suggestions: int,
@@ -47,6 +55,7 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 **kwargs
                  ) -> torch.Tensor:
 
         assert n_suggestions == 1, 'Genetic Algorithm acquisition optimizer does not support suggesting batches of data'
@@ -57,6 +66,7 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                               self.ga_num_elite,
                               self.ga_store_x,
                               self.ga_allow_repeating_x,
+                              self.tr_manager,
                               self.dtype)
 
         ga.x_queue.iloc[0:1] = self.search_space.inverse_transform(x.unsqueeze(0))

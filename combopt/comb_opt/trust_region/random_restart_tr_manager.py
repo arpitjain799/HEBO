@@ -12,24 +12,18 @@ from typing import Union, Optional
 import pandas as pd
 import torch
 
-from comb_opt.acq_funcs import AcqBase
-from comb_opt.models import ModelBase
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
-from comb_opt.utils.model_utils import move_model_to_device
 
 
-class CasmopolitanTrManager(TrManagerBase):
+class RandomRestartTrManager(TrManagerBase):
 
     def __init__(self,
                  search_space: SearchSpace,
-                 model: ModelBase,
-                 acq_func: AcqBase,
-                 n_init: int,
                  min_num_radius: Union[int, float],
                  max_num_radius: Union[int, float],
                  init_num_radius: Union[int, float],
@@ -39,16 +33,15 @@ class CasmopolitanTrManager(TrManagerBase):
                  radius_multiplier: float = 1.5,
                  succ_tol: int = 20,
                  fail_tol: int = 2,
-                 restart_n_cand: int = 1000,
                  max_n_perturb_num: int = 20,
                  verbose=False,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
-        super(CasmopolitanTrManager, self).__init__(search_space, dtype)
+        super(RandomRestartTrManager, self).__init__(search_space, dtype)
 
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
-            'The Casmopolitan Trust region manager only supports continuous, discrete and nominal variables'
+            'The Random Restart Trust region manager only supports continuous, discrete and nominal variables'
 
         self.register_radius('numeric', min_num_radius, max_num_radius, init_num_radius)
         self.register_radius('nominal', min_nominal_radius, max_nominal_radius, init_nominal_radius)
@@ -59,10 +52,6 @@ class CasmopolitanTrManager(TrManagerBase):
         self.discrete_choices = get_discrete_choices(search_space)
 
         self.verbose = verbose
-        self.model = model
-        self.acq_func = acq_func
-        self.n_init = n_init
-        self.restart_n_cand = restart_n_cand
         self.max_n_perturb_num = max_n_perturb_num
 
         self.succ_tol = succ_tol
@@ -91,7 +80,8 @@ class CasmopolitanTrManager(TrManagerBase):
             if self.is_numeric:
                 self.radii['numeric'] = min(self.radii['numeric'] * self.radius_multiplier, self.max_radii['numeric'])
             if self.search_space.num_nominal > 0:
-                self.radii['nominal'] = int(min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
+                self.radii['nominal'] = int(
+                    min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
             if self.verbose:
                 print(f"Expanding trust region...")
 
@@ -121,34 +111,8 @@ class CasmopolitanTrManager(TrManagerBase):
 
         x_init = pd.DataFrame(index=range(n_init), columns=self.search_space.df_col_names, dtype=float)
 
-        if len(self.data_buffer) > 0:
-
-            tr_x, tr_y = self.data_buffer.x, self.data_buffer.y
-
-            # store best observed point within current trust region
-            best_idx, best_y = self.data_buffer.y_argmin, self.data_buffer.y_min
-            self.guided_restart_buffer.append(tr_x[best_idx: best_idx + 1], tr_y[best_idx: best_idx + 1])
-
-            # Determine the device to run on
-            move_model_to_device(self.model, self.guided_restart_buffer, self.device)
-
-            # Fit the model
-            self.model.fit(self.guided_restart_buffer.x, self.guided_restart_buffer.y)
-
-            # Sample random points and evaluate the acquisition at these points
-            x_cand = self.search_space.transform(self.search_space.sample(self.restart_n_cand))
-            with torch.no_grad():
-                acq = self.acq_func(x_cand, self.model, best_y=best_y)
-
-            # The new trust region centre is the point with the lowest acquisition value
-            best_idx = acq.argmin()
-
-            tr_centre = x_cand[best_idx]
-            x_init.iloc[0: 1] = self.search_space.inverse_transform(tr_centre.unsqueeze(0))
-
-        else:
-            x_init.iloc[0: 1] = self.search_space.sample(1)
-            tr_centre = self.search_space.transform(x_init.iloc[0:1]).squeeze()
+        x_init.iloc[0: 1] = self.search_space.sample(1)
+        tr_centre = self.search_space.transform(x_init.iloc[0:1]).squeeze()
 
         self.restart_tr()
 
@@ -164,7 +128,7 @@ class CasmopolitanTrManager(TrManagerBase):
                                                            numeric_dims=self.numeric_dims,
                                                            discrete_choices=self.discrete_choices,
                                                            max_n_perturb_num=self.max_n_perturb_num,
-                                                           model=self.model,
+                                                           model=None,
                                                            return_numeric_bounds=False)
 
             # Store them
@@ -188,13 +152,13 @@ class CasmopolitanTrManager(TrManagerBase):
         self.guided_restart_buffer.restart()
 
     def restart_tr(self):
-        super(CasmopolitanTrManager, self).restart_tr()
+        super(RandomRestartTrManager, self).restart_tr()
         self.succ_count = 0
         self.fail_count = 0
 
     def __getstate__(self):
         d = dict(self.__dict__)
-        to_remove = ["model", "search_space"]  # fields to remove when pickling this object
+        to_remove = ["search_space"]  # fields to remove when pickling this object
         for attr in to_remove:
             if attr in d:
                 del d[attr]
