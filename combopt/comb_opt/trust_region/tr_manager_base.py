@@ -42,7 +42,6 @@ class TrManagerBase(ABC):
 
     @property
     def center(self) -> Optional[torch.Tensor]:
-        return self._center.clone()
         if self._center is None:
             return None
         else:
@@ -94,13 +93,9 @@ class TrManagerBase(ABC):
         self.set_center(self.data_buffer.x_min)
 
     @abstractmethod
-    def guided_restart(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
     def suggest_new_tr(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
                        best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
         """
-        Function used to conduct a guided restart of the trust region and to return a initialisation for the new trust
-        region. This function is called during every suggest step. When the guided restart is not triggered, it should
-        return x_init.
         Function used to suggest a new trust region with its initialisation if needed . This should be only triggered if
         the current radius for any of the variables is below the minimum radius. Otherwise, this function should simply
         return x_init. Note, that this function will be called during every suggest step.
@@ -114,4 +109,3 @@ class TrManagerBase(ABC):
         """
 
         pass
-
