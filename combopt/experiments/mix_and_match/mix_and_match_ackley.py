@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
 
 from comb_opt.factory import task_factory
 from comb_opt.utils.experiment_utils import run_experiment
@@ -22,10 +22,10 @@ from comb_opt.optimizers.mix_and_match.lr_sparse_hs_tr_stochastic_ls_acq_optim i
 from comb_opt.optimizers.mix_and_match.lr_sparse_hs_exhaustive_ls_acq_optim import LrSparseHsExhaustiveLsAcqOptim
 
 if __name__ == '__main__':
-    task_name = 'rna_inverse_fold'
-    task_kwargs = {'target': 65}
+    task_name = 'ackley'
+    task_kwargs = {'num_dims': 20, 'variable_type': 'nominal', 'num_categories': 11}
     bo_n_init = 20
-    bo_device = torch.device('cuda:0')
+    bo_device = torch.device('cuda:1')
     max_num_iter = 200
     dtype = torch.float32
     random_seeds = [42, 43, 44, 45, 46]
@@ -48,8 +48,19 @@ if __name__ == '__main__':
     lr_sparse_hs_tr_ls = LrSparseHsTrLsAcqOptim(search_space, bo_n_init, dtype=dtype, device=bo_device)
     lr_sparse_hs_exhaustive_ls = LrSparseHsExhaustiveLsAcqOptim(search_space, bo_n_init, dtype=dtype, device=bo_device)
 
-    optimizers = [gp_ssk_sa, gp_ssk_exhaustive_ls, gp_diffusion_ga, gp_diffusion_sa, gp_diffusion_tr_ls, gp_to_ga,
-                  gp_to_sa, gp_to_exhaustive_ls, lr_sparse_hs_ga, lr_sparse_hs_tr_ls, lr_sparse_hs_exhaustive_ls]
+    optimizers = [
+        gp_ssk_sa,
+        gp_ssk_exhaustive_ls,
+        gp_diffusion_ga,
+        gp_diffusion_sa,
+        gp_diffusion_tr_ls,
+        gp_to_ga,
+        gp_to_sa,
+        gp_to_exhaustive_ls,
+        lr_sparse_hs_ga,
+        lr_sparse_hs_tr_ls,
+        lr_sparse_hs_exhaustive_ls
+    ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,
                    very_verbose=False)

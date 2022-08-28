@@ -1,24 +1,3 @@
-# Copyright (C) 2022. Huawei Technologies Co., Ltd. All rights reserved. Redistribution and use in source and binary
-# forms, with or without modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-# disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-# following disclaimer in the documentation and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-# products derived from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
 import itertools
 import os
 from subprocess import CalledProcessError
@@ -36,7 +15,7 @@ from comb_opt.tasks.eda_seq_opt.utils.utils_design_groups import get_designs_pat
 from comb_opt.tasks.eda_seq_opt.utils.utils_eda_search_space import OptimHyperSpace
 from comb_opt.tasks.eda_seq_opt.utils.utils_operators import OperatorSpace, get_operator_space, SeqOperatorsPattern, \
     get_seq_operators_pattern, Operator, PRE_MAPPING_OPERATOR_TYPE, \
-    make_operator_sequence_valid, is_lut_mapping_hyperparam, MAPPING_OPERATOR_TYPE, POST_MAPPING_OPERATOR_TYPE
+    make_operator_sequence_valid, is_lut_mapping_hyperparam, MAPPING_OPERATOR_TYPE, POST_MAPPING_OPERATOR_TYPE, If
 from comb_opt.tasks.eda_seq_opt.utils.utils_operators_hyp import OperatorHypSpace, get_operator_hyperparms_space
 from comb_opt.tasks.task_base import TaskBase
 from comb_opt.utils.general_utils import save_w_pickle, safe_load_w_pickle, log
@@ -46,7 +25,12 @@ class EDASeqOptimization(TaskBase):
 
     @property
     def name(self) -> str:
-        return 'EDA Sequence Optimization'
+        name = f'EDA Sequence Optimization - Design {self.designs_group_id} - ' \
+               f'Ops {self.operator_space_id} - Pattern {self.seq_operators_pattern_id}'
+        if self.operator_hyperparams_space_id is not None and len(self.operator_hyperparams_space_id):
+            name += f" - Hyps {self.operator_hyperparams_space_id}"
+        name += f" - Obj {self.objective}"
+        return name
 
     def __init__(self, designs_group_id: str, operator_space_id: str, seq_operators_pattern_id: Optional[str],
                  operator_hyperparams_space_id: Optional[str],
@@ -112,6 +96,10 @@ class EDASeqOptimization(TaskBase):
 
         self.seq_operators_pattern: SeqOperatorsPattern = self.get_seq_operators_pattern()
         assert self.seq_operators_pattern is not None
+        if self.seq_operators_pattern.not_mapped_at_the_end():
+            self.final_mapping_op = If(**{"If K": lut_inputs})
+        else:
+            self.final_mapping_op = None
 
         self.optim_space: OptimHyperSpace = OptimHyperSpace(
             operator_space=self.operator_space,
@@ -123,7 +111,7 @@ class EDASeqOptimization(TaskBase):
 
         self.ckpt_data.build_data(search_space_len=self.optim_space.search_space_len,
                                   n_designs=len(self.design_files),
-                                  n_intermediate_vals=self.seq_operators_pattern.n_print_stats,
+                                  n_intermediate_vals=self.n_print_stats,
                                   n_out_dims=self.n_out_dims)
 
     @property
@@ -133,6 +121,11 @@ class EDASeqOptimization(TaskBase):
         else:
             return 1
 
+    @property
+    def n_print_stats(self) -> int:
+        return self.seq_operators_pattern.n_print_stats + (self.final_mapping_op is not None)
+
+
     def get_eda_obj_func(self):
         return get_eda_obj_func(self.objective)
 
@@ -140,7 +133,7 @@ class EDASeqOptimization(TaskBase):
         return self.ckpt_data.get_ckpt_data_as_dict()
 
     def load_ckpt_data(self, ckpt: Dict[str, Any]):
-        self.ckpt_data.load_ckpt_data(ckpt, n_intermediate_vals=self.seq_operators_pattern.n_print_stats)
+        self.ckpt_data.load_ckpt_data(ckpt, n_intermediate_vals=self.n_print_stats)
         self._n_bb_evals = len(self.ckpt_data.samples_X)
 
     def get_ref(self, design_file: str) -> Tuple[float, float, float]:
@@ -250,7 +243,8 @@ class EDASeqOptimization(TaskBase):
 
     @staticmethod
     def convert_array_to_operator_seq(sequence: np.ndarray, hyperparams: Dict[str, Any], operator_space: OperatorSpace,
-                                      lut_inputs: int) -> Tuple[List[Operator], np.ndarray, bool]:
+                                      lut_inputs: int,
+                                      final_mapping_op: Optional[Operator]) -> Tuple[List[Operator], np.ndarray, bool]:
         assert sequence.ndim == 1, sequence.shape
         operator_sequence: List[Operator] = []
         print_stat_stages = [0]
@@ -265,12 +259,14 @@ class EDASeqOptimization(TaskBase):
                 if is_lut_mapping_hyperparam(kw):
                     op_hyp[kw] = lut_inputs
             operator_sequence.append(op_class(**op_hyp))
-            if (operator_sequence[-1].op_type in [MAPPING_OPERATOR_TYPE, POST_MAPPING_OPERATOR_TYPE]):
+            if (operator_sequence[-1].op_type in [MAPPING_OPERATOR_TYPE,
+                                                  POST_MAPPING_OPERATOR_TYPE]) or final_mapping_op:
                 print_stat_stages.append(print_stat_stages[-1] + 1)  # new print_stats
             else:
                 print_stat_stages.append(print_stat_stages[-1])  # no new print_stats
         assert operator_sequence[0].op_type == PRE_MAPPING_OPERATOR_TYPE, operator_sequence[0]
-        valid_seq_operator, is_new_op = make_operator_sequence_valid(operator_sequence)
+        valid_seq_operator, is_new_op = make_operator_sequence_valid(operator_sequence,
+                                                                     final_mapping_op=final_mapping_op)
         return valid_seq_operator, np.array(print_stat_stages), is_new_op
 
     def evaluate_(self, sequence: np.ndarray, hyperparams: Dict[str, Any],
@@ -290,7 +286,8 @@ class EDASeqOptimization(TaskBase):
             sequence=sequence,
             hyperparams=hyperparams,
             operator_space=self.operator_space,
-            lut_inputs=self.lut_inputs
+            lut_inputs=self.lut_inputs,
+            final_mapping_op=self.final_mapping_op
         )
         if not self.seq_operators_pattern.contains_free:
             print_stat_stages = None
@@ -305,18 +302,18 @@ class EDASeqOptimization(TaskBase):
         if is_new_op:
             sequence = ["&get -n -m;"] + sequence
         if seq_ind_id in eval_dic and len(eval_dic[seq_ind_id]) >= 3 and "luts" in eval_dic[seq_ind_id][2] \
-                and len(eval_dic[seq_ind_id][2]["luts"]) == self.seq_operators_pattern.n_print_stats \
+                and len(eval_dic[seq_ind_id][2]["luts"]) == self.n_print_stats \
                 and eval_dic[seq_ind_id][2] is not None \
                 and "exec_time" in eval_dic[seq_ind_id][2] \
                 and eval_dic[seq_ind_id][2]["exec_time"] > 0:
-            if n_evals % 10 == 1:
+            if n_evals % 50 == 1:
                 self.log(f"{n_evals}. Already computed {seq_ind_id} for {get_design_name(design_file)}...")
             obj_1, obj_2, extra_info, valid = eval_dic[seq_ind_id]
             exec_time = extra_info["exec_time"]
         else:
             valid = True
             try:
-                if n_evals % 10 == 1:
+                if n_evals % 50 == 1:
                     log(f"{n_evals}. Evaluate {seq_ind_id}",
                         header=f"{self.objective}. -- {get_design_name(design_file)}")
                 obj_func = None
@@ -355,7 +352,7 @@ class EDASeqOptimization(TaskBase):
         extra_keys = ["luts", "levels", "edges"]
         for extra_key in extra_keys:
             if extra_key not in extra_info:
-                extra_info[extra_key] = [0 for _ in range(self.seq_operators_pattern.n_print_stats)]
+                extra_info[extra_key] = [0 for _ in range(self.n_print_stats)]
         if "exec_time" not in extra_info:
             extra_info["exec_time"] = exec_time
         return obj_1 / ref_1, obj_2 / ref_2, valid, extra_info
@@ -389,9 +386,9 @@ class EDASeqOptimization(TaskBase):
         new_objs_1 = np.zeros((n, len(self.design_files)))
         new_objs_2 = np.zeros((n, len(self.design_files)))
         new_ex_times = np.zeros((n, len(self.design_files)))
-        new_intermediate_objs_1 = np.zeros((n, len(self.design_files), self.seq_operators_pattern.n_print_stats))
-        new_intermediate_objs_2 = np.zeros((n, len(self.design_files), self.seq_operators_pattern.n_print_stats))
-        new_intermediate_edges = np.zeros((n, len(self.design_files), self.seq_operators_pattern.n_print_stats))
+        new_intermediate_objs_1 = np.zeros((n, len(self.design_files), self.n_print_stats))
+        new_intermediate_objs_2 = np.zeros((n, len(self.design_files), self.n_print_stats))
+        new_intermediate_edges = np.zeros((n, len(self.design_files), self.n_print_stats))
         new_full_valids = np.zeros((n, len(self.design_files)))
 
         obj_index = 0

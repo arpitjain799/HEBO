@@ -105,7 +105,7 @@ class CasmopolitanTrManager(TrManagerBase):
                 print(f"Shrinking trust region...")
 
     def suggest_new_tr(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
-                       best_y: Optional[Union[float, torch.Tensor]], **kwargs) -> pd.DataFrame:
+                       best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
 
         trigger_reset = False
         for variable_type in self.variable_types:

@@ -1,24 +1,3 @@
-# Copyright (C) 2022. Huawei Technologies Co., Ltd. All rights reserved. Redistribution and use in source and binary
-# forms, with or without modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-# disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-# following disclaimer in the documentation and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-# products derived from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
 import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Tuple, Type, Union, Set, Optional
@@ -1015,9 +994,14 @@ class SeqOperatorsPattern:
 
         return list(valid_op_ind)
 
+    def not_mapped_at_the_end(self) -> bool:
+        """ Return True if the pattern is such that it is sure that the circuit won't be a mapped netlist at the end """
+        return self.pattern[-1] == PRE_MAPPING_OPERATOR_TYPE.num_id
+
 
 SEQ_OPERATOR_PATTERNS: Dict[str, SeqOperatorsPattern] = {
-    'basic': SeqOperatorsPattern([0] * 20 + [1]),
+    'basic': SeqOperatorsPattern([0] * 20),
+    'freePattern21': SeqOperatorsPattern([-1] * 20 + [-2]),
 }
 
 
@@ -1068,7 +1052,7 @@ def get_operator_space(operator_space_id: str) -> OperatorSpace:
     return OPERATOR_SPACES[operator_space_id]
 
 
-def make_operator_sequence_valid(operator_sequence: List[Operator]) -> Tuple[List[Operator], bool]:
+def make_operator_sequence_valid(operator_sequence: List[Operator], final_mapping_op: Optional[Operator] = None) -> Tuple[List[Operator], bool]:
     """
     Add `strash` and `rec_start3` operations if needs be to make the operator sequence valid
     """
@@ -1081,10 +1065,12 @@ def make_operator_sequence_valid(operator_sequence: List[Operator]) -> Tuple[Lis
     if seq_of_new_ops:
         return make_new_operator_sequence_valid(operator_sequence=operator_sequence), seq_of_new_ops
     else:
-        return make_old_operator_sequence_valid(operator_sequence=operator_sequence), seq_of_new_ops
+        return make_old_operator_sequence_valid(operator_sequence=operator_sequence,
+                                                final_mapping_op=final_mapping_op), seq_of_new_ops
 
 
-def make_old_operator_sequence_valid(operator_sequence: List[Operator]) -> List[Operator]:
+def make_old_operator_sequence_valid(operator_sequence: List[Operator], final_mapping_op: Optional[Operator] = None) -> List[
+    Operator]:
     """
     Add `strash` and `rec_start3` operations if needs be to make the operator sequence valid
     """
@@ -1104,6 +1090,8 @@ def make_old_operator_sequence_valid(operator_sequence: List[Operator]) -> List[
     if not include_rec_start3:
         # remove first REC_START_3 action
         final_action_sequence = final_action_sequence[1:]
+    if final_mapping_op is not None and previous_action_type not in [MAPPING_OPERATOR_TYPE, POST_MAPPING_OPERATOR_TYPE]:
+        final_action_sequence.append(final_mapping_op)
     final_action_sequence.append(PrintStats())
     return final_action_sequence
 

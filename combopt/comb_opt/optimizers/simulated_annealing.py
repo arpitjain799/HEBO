@@ -34,13 +34,16 @@ class SimulatedAnnealing(OptimizerBase):
                  store_observations: bool = True,
                  allow_repeating_suggestions: bool = False,
                  max_n_perturb_num: int = 20,
+                 neighbourhood_ball_transformed_radius: int = .1,
                  dtype: torch.dtype = torch.float32,
                  ):
         """
         :param: fixed_tr_manager: the SA will evolve within the TR defined by the fixed_tr_manager
+        :param: neighbourhood_ball_normalised_radius: in the transformed space, numerical dims are mutated by sampling
+                                                      a Gaussian perturbation with std this value
         """
-        assert search_space.num_nominal == search_space.num_params, \
-            'Simulated Annealing is currently implemented for nominal variables only'
+        assert search_space.num_permutation == 0, \
+            'Simulated Annealing is currently not implemented for permutation variables'
 
         self.fixed_tr_manager = fixed_tr_manager
         super(SimulatedAnnealing, self).__init__(search_space, dtype)
@@ -51,6 +54,7 @@ class SimulatedAnnealing(OptimizerBase):
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
         self.discrete_choices = get_discrete_choices(search_space)
         self.max_n_perturb_num = max_n_perturb_num
+        self.neighbourhood_ball_transformed_radius = neighbourhood_ball_transformed_radius
 
         self.init_temp = init_temp
         self.tolerance = tolerance
@@ -149,10 +153,32 @@ class SimulatedAnnealing(OptimizerBase):
             n_remaining -= n_remaining
 
         if n_remaining:
+            assert self._current_x is not None
             current_x = self._current_x.clone() * torch.ones((n_remaining, self._current_x.shape[1])).to(
                 self._current_x)
 
-            neighbors = self.sample_unseen_nominal_neighbour(current_x)
+            # create tensor with the good shape
+            neighbors = self.search_space.transform(self.search_space.sample(n_remaining))
+
+            # sample neighbor for nominal dims
+            neighbors[:, self.search_space.nominal_dims] = self.sample_unseen_nominal_neighbour(
+                current_x[:, self.search_space.nominal_dims])
+
+            # TODO: check this  --> do we make sure everything is in [0, 1] in transformed space?
+            # sample neighbor for numeric dims
+            dim_arrays = [self.search_space.disc_dims, self.search_space.cont_dims]
+            for dim_array in dim_arrays:
+                if len(dim_array) > 0:
+                    noise = torch.randn((n_remaining, len(dim_array))).to(
+                        self._current_x) * self.neighbourhood_ball_transformed_radius
+                    # project back to the state space
+                    clip_lb = 0
+                    clip_ub = 1
+                    if self.fixed_tr_manager:  # make sure neighbor is in TR
+                        clip_lb = max(0, self.fixed_tr_manager.center[dim_array] - self.fixed_tr_manager.radii['numeric'])
+                        clip_ub = min(1, self.fixed_tr_manager.center[dim_array] + self.fixed_tr_manager.radii['numeric'])
+                    neighbors[:, dim_array] = torch.clip(current_x[:, dim_array] + noise, clip_lb, clip_ub)
+
             x_next.iloc[idx: idx + n_remaining] = self.search_space.inverse_transform(neighbors)
 
         return x_next
@@ -203,7 +229,7 @@ class SimulatedAnnealing(OptimizerBase):
     def sample_unseen_nominal_neighbour(self, x_nominal: torch.Tensor):
 
         if not self.allow_repeating_suggestions:
-            x_observed = self.data_buffer.x
+            x_observed = self.data_buffer.x[:, self.search_space.nominal_dims]
 
         single_sample = False
 
@@ -242,19 +268,20 @@ class SimulatedAnnealing(OptimizerBase):
                 elif tol == 0:
                     if self.fixed_tr_manager:
                         x = sample_numeric_and_nominal_within_tr(x_centre=self.fixed_tr_manager.center,
-                                                             search_space=self.search_space,
-                                                             tr_manager=self.fixed_tr_manager,
-                                                             n_points=1,
-                                                             is_numeric=self.is_numeric,
-                                                             is_mixed=self.is_mixed,
-                                                             numeric_dims=self.numeric_dims,
-                                                             discrete_choices=self.discrete_choices,
-                                                             max_n_perturb_num=self.max_n_perturb_num,
-                                                             model=None,
-                                                             return_numeric_bounds=False)
+                                                                 search_space=self.search_space,
+                                                                 tr_manager=self.fixed_tr_manager,
+                                                                 n_points=1,
+                                                                 is_numeric=self.is_numeric,
+                                                                 is_mixed=self.is_mixed,
+                                                                 numeric_dims=self.numeric_dims,
+                                                                 discrete_choices=self.discrete_choices,
+                                                                 max_n_perturb_num=self.max_n_perturb_num,
+                                                                 model=None,
+                                                                 return_numeric_bounds=False)
                     else:
                         x = self.search_space.transform(self.search_space.sample(1))[0]
                     done = True
+                    x = x[self.search_space.nominal_dims]
 
             x_nominal_neighbour[idx] = x
 

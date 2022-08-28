@@ -26,13 +26,19 @@ class LocalSearch(OptimizerBase):
                  tolerance: int = 1000,
                  store_observations: bool = True,
                  allow_repeating_suggestions: bool = False,
+                 neighbourhood_ball_transformed_radius: int = .1,
                  dtype: torch.dtype = torch.float32,
                  ):
-        assert search_space.num_nominal == search_space.num_params, \
-            'Local Search is currently implemented for nominal variables only'
+        """
+        :param: neighbourhood_ball_normalised_radius: in the transformed space, numerical dims are mutated by sampling
+                                                      a Gaussian perturbation with std this value
+        """
+        assert search_space.num_permutation == 0, \
+            'Local Search is currently not implemented for permutation variables'
 
         super(LocalSearch, self).__init__(search_space, dtype)
 
+        self.neighbourhood_ball_transformed_radius = neighbourhood_ball_transformed_radius
         self.tolerance = tolerance
         self.store_observations = store_observations
         self.allow_repeating_suggestions = allow_repeating_suggestions
@@ -79,7 +85,7 @@ class LocalSearch(OptimizerBase):
             self._current_y = best_y
             self._current_x = x[best_idx: best_idx + 1]
 
-    def suggest(self, n_suggestions):
+    def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
         idx = 0
         n_remaining = n_suggestions
@@ -99,11 +105,30 @@ class LocalSearch(OptimizerBase):
             n_remaining -= n_remaining
 
         if n_remaining:
+            assert self._current_x is not None
             current_x = self._current_x.clone() * torch.ones((n_remaining, self._current_x.shape[1])).to(
                 self._current_x)
 
-            x_next.iloc[idx: idx + n_remaining] = self.search_space.inverse_transform(
-                self.sample_unseen_nominal_neighbour(current_x))
+            # create tensor with the good shape
+            neighbors = self.search_space.transform(self.search_space.sample(n_remaining))
+
+            # sample neighbor for nominal dims
+            neighbors[:, self.search_space.nominal_dims] = self.sample_unseen_nominal_neighbour(
+                current_x[:, self.search_space.nominal_dims])
+
+            # TODO: check this  --> do we make sure everything is in [0, 1] in transformed space?
+            # sample neighbor for numeric dims
+            dim_arrays = [self.search_space.disc_dims, self.search_space.cont_dims]
+            for dim_array in dim_arrays:
+                if len(dim_array) > 0:
+                    noise = torch.randn((n_remaining, len(dim_array))).to(
+                        self._current_x) * self.neighbourhood_ball_transformed_radius
+                    # project back to the state space
+                    clip_lb = 0
+                    clip_ub = 1
+                    neighbors[:, dim_array] = torch.clip(current_x[:, dim_array] + noise, clip_lb, clip_ub)
+
+            x_next.iloc[idx: idx + n_remaining] = self.search_space.inverse_transform(neighbors)
 
         return x_next
 
@@ -118,7 +143,7 @@ class LocalSearch(OptimizerBase):
 
         # Add data to all previously observed data
         if self.store_observations or (not self.allow_repeating_suggestions):
-            self.data_buffer.append(x, y)
+            self.data_buffer.append(x.clone(), y.clone())
 
         # update best fx
         if self.best_y is None:
@@ -144,7 +169,7 @@ class LocalSearch(OptimizerBase):
     def sample_unseen_nominal_neighbour(self, x_nominal: torch.Tensor):
 
         if not self.allow_repeating_suggestions:
-            x_observed = self.data_buffer.x
+            x_observed = self.data_buffer.x[:, self.search_space.nominal_dims]
 
         single_sample = False
 
@@ -175,6 +200,8 @@ class LocalSearch(OptimizerBase):
                     done = True
                 elif tol == 0:
                     x = self.search_space.transform(self.search_space.sample(1))[0]
+                    done = True
+                    x = x[self.search_space.nominal_dims]
 
             x_nominal_neighbour[idx] = x
 

@@ -47,8 +47,7 @@ class RandomSearch(OptimizerBase):
 
         if n_remaining:
             x_next[idx: idx + n_remaining] = self.search_space.sample(n_remaining)
-
-        return self.search_space.sample(n_suggestions)
+        return x_next
 
     def observe(self, x: pd.DataFrame, y: np.ndarray):
 

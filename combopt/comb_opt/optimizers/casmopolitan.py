@@ -115,7 +115,8 @@ class Casmopolitan(BoBase):
             else:
                 assert tr_min_nominal_radius <= tr_init_nominal_radius <= tr_max_nominal_radius
 
-        assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius
+        assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius, (
+            tr_min_nominal_radius, tr_init_nominal_radius, tr_max_nominal_radius)
 
         if tr_radius_multiplier is None:
             tr_radius_multiplier = 1.5

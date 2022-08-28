@@ -15,7 +15,6 @@ import torch
 from comb_opt.search_space import SearchSpace
 from comb_opt.tasks import TaskBase, RandomTSP, PestControl, default_sfu_params_factory, SFU_FUNCTIONS, CDRH3Design, \
     MigSeqOpt
-from comb_opt.tasks.bayesmark.bayesmark_task import BayesmarkTask
 from comb_opt.tasks.rna_inverse_fold.rna_inverse_fold_task import RNAInverseFoldTask
 from comb_opt.tasks.rna_inverse_fold.utils import get_target_from_id, RNA_BASES
 
@@ -214,6 +213,7 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         search_space = search_space_factory('rna_inverse_fold', dtype, target=target, binary_mode=binary_mode)
 
     elif task_name == "bayesmark":
+        from comb_opt.tasks.bayesmark.bayesmark_task import BayesmarkTask
         model_name = kwargs.get("model_name", "lasso")
         metric = kwargs.get("metric", "mse")
         database_id = kwargs.get("database_id", "boston")
@@ -229,7 +229,7 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         operator_space_id = kwargs.get("operator_space_id", "basic")
         seq_operators_pattern_id = kwargs.get("seq_operators_pattern_id", "basic")
         evaluator = kwargs.get("evaluator", "abc")
-        return_best_intermediate = kwargs.get("return_best_intermediate", "abc")
+        return_best_intermediate = kwargs.get("return_best_intermediate", True)
         lut_inputs = kwargs.get("lut_inputs", "6")
         ref_abc_seq = kwargs.get("ref_abc_seq", "resyn2")
         objective = kwargs.get("objective", "lut")

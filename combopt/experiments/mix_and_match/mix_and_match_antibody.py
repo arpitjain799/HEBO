@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
 
 from comb_opt.factory import task_factory
 from comb_opt.utils.experiment_utils import run_experiment
@@ -15,15 +15,15 @@ from comb_opt.optimizers.mix_and_match.gp_to_kernel_exhaustive_ls_acq_optim impo
 from comb_opt.optimizers.mix_and_match.gp_diffusion_kernel_ga_acq_optim import GpDiffusionGaAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_diffusion_kernel_sa_acq_optim import GpDiffusionSaAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_diffusion_kernel_tr_stochastic_ls_acq_optim import GpDiffusionTrLsAcqOptim
-from comb_opt.optimizers.mix_and_match.gp_ssk_kernel_exhaustive_ls_acq_optim import GpSskExhaustiveLsAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_ssk_kernel_sa_acq_optim import GpSskSaAcqOptim
+from comb_opt.optimizers.mix_and_match.gp_ssk_kernel_exhaustive_ls_acq_optim import GpSskExhaustiveLsAcqOptim
 from comb_opt.optimizers.mix_and_match.lr_sparse_hs_ga_acq_optim import LrSparseHsGaAcqOptim
 from comb_opt.optimizers.mix_and_match.lr_sparse_hs_tr_stochastic_ls_acq_optim import LrSparseHsTrLsAcqOptim
 from comb_opt.optimizers.mix_and_match.lr_sparse_hs_exhaustive_ls_acq_optim import LrSparseHsExhaustiveLsAcqOptim
 
 if __name__ == '__main__':
-    task_name = 'pest'
-    task_kwargs = {}
+    task_name = 'antibody_design'
+    task_kwargs = {'num_cpus': 10, 'first_cpu': 10}
     bo_n_init = 20
     bo_device = torch.device('cuda:1')
     max_num_iter = 200
