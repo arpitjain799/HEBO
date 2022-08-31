@@ -27,25 +27,13 @@ if __name__ == '__main__':
             rs_optim = RandomSearch(search_space=search_space, dtype=dtype)
             ls_optim = LocalSearch(search_space=search_space, dtype=dtype)
             sa_optim = SimulatedAnnealing(search_space=search_space, dtype=dtype)
-            # ga_optim = GeneticAlgorithm(search_space=search_space, dtype=dtype)
-            # bocs = BOCS(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-            # boss = BOSS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
-            # combo = COMBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-            # cocabo = CoCaBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-            # casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-            # boils = BOiLS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
+            casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
 
             optimizers = [
-                # boss,
-                # boils,
-                # casmopolitan,
-                # combo,
-                # bocs,
-                # cocabo,
+                casmopolitan,
                 rs_optim,
                 ls_optim,
                 sa_optim,
-                # ga_optim
             ]
 
             run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

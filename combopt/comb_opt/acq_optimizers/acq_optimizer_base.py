@@ -9,12 +9,14 @@
 
 from abc import ABC
 from abc import abstractmethod
+from typing import Optional
 
 import torch
 
 from comb_opt.acq_funcs import AcqBase
 from comb_opt.models import ModelBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region import TrManagerBase
 from comb_opt.utils.data_buffer import DataBuffer
 
 
@@ -37,6 +39,7 @@ class AcqOptimizerBase(ABC):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 tr_manager: Optional[TrManagerBase],
                  **kwargs
                  ) -> torch.Tensor:
         """
@@ -53,6 +56,7 @@ class AcqOptimizerBase(ABC):
         :param model:
         :param acq_func:
         :param acq_evaluate_kwargs:
+        :param tr_manager: a trust region within which to perform the optimization
         :param kwargs:
         :return:
         """

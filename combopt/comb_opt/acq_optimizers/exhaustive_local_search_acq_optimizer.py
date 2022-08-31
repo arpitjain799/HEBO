@@ -31,7 +31,6 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                  search_space: SearchSpace,
                  adjacency_mat_list: List[torch.FloatTensor],
                  n_vertices: np.array,
-                 tr_manager: Optional[TrManagerBase] = None,
                  n_random_vertices: int = 20000,
                  n_greedy_ascent_init: int = 20,
                  n_spray: int = 10,
@@ -44,8 +43,6 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
             'The greedy descent acquisition optimizer only supports nominal and ordinal variables.'
 
         super(ExhaustiveLsAcqOptimizer, self).__init__(search_space, dtype)
-
-        self.tr_manager = tr_manager
 
         self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
         self.is_nominal = True if search_space.num_nominal > 0 else False
@@ -75,18 +72,19 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 tr_manager: Optional[TrManagerBase],
                  **kwargs
                  ) -> torch.Tensor:
 
         if n_suggestions == 1:
-            return self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs)
+            return self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs, tr_manager=tr_manager)
         else:
             x_next = torch.zeros((0, self.search_space.num_dims), dtype=self.dtype)
             model = copy.deepcopy(model)  # create a local copy of the model to be able to retrain it
             x_observed = x_observed.clone()
 
             for i in range(n_suggestions):
-                x_ = self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs)
+                x_ = self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs, tr_manager=tr_manager)
                 x_next = torch.cat((x_next, x_), dim=0)
 
                 # No need to add hallucinations during last iteration as the model will not be used
@@ -103,6 +101,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                   model: ModelBase,
                   acq_func: AcqBase,
                   acq_evaluate_kwargs: dict,
+                  tr_manager: Optional[TrManagerBase],
                   **kwargs
                   ) -> torch.Tensor:
 
@@ -111,12 +110,12 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         device, dtype = model.device, model.dtype
 
         # Sample initial points
-        if self.tr_manager:
-            assert self.tr_manager.get_nominal_radius() > 0, "Cannot suggest any neighbors, TR should have been restarted"
+        if tr_manager:
+            assert tr_manager.get_nominal_radius() > 0, "Cannot suggest any neighbors, TR should have been restarted"
             x_centre = x.clone()
             x_random, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
                                                                                     search_space=self.search_space,
-                                                                                    tr_manager=self.tr_manager,
+                                                                                    tr_manager=tr_manager,
                                                                                     n_points=self.n_random_vertices,
                                                                                     is_numeric=self.is_numeric,
                                                                                     is_mixed=self.is_mixed,
@@ -145,8 +144,10 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         x_inits, acq_inits = x_init_candidates[:self.n_greedy_ascent_init], acq_sorted[:self.n_greedy_ascent_init]
 
         # Greedy Descent
-        exhaustive_ls_return_values = [self._exhaustive_ls(x_inits[i], acq_func, model, acq_evaluate_kwargs) for i in
-                                       range(self.n_greedy_ascent_init)]
+        exhaustive_ls_return_values = [
+            self._exhaustive_ls(x_inits[i], acq_func, model, acq_evaluate_kwargs=acq_evaluate_kwargs,
+                                tr_manager=tr_manager) for i in
+            range(self.n_greedy_ascent_init)]
 
         x_greedy_ascent, acq_greedy_ascent = zip(*exhaustive_ls_return_values)
 
@@ -163,11 +164,11 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
 
         if x_next is None:  # Attempt to grab a neighbour of the suggested points
             for idx in indices:
-                if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
-                                                    normalize=False) >= self.tr_manager.get_nominal_radius():
+                if tr_manager and hamming_distance(tr_manager.center[self.search_space.nominal_dims].to(x), x,
+                                                   normalize=False) >= tr_manager.get_nominal_radius():
                     neighbours = cartesian_neighbors_center_attracted(x_greedy_ascent[idx].long(),
                                                                       self.adjacency_mat_list,
-                                                                      x_center=self.tr_manager.center)
+                                                                      x_center=tr_manager.center)
                 else:
                     neighbours = cartesian_neighbors(x_greedy_ascent[idx].long(), self.adjacency_mat_list)
                 for j in range(neighbours.size(0)):
@@ -178,10 +179,10 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
                     break
 
         if x_next is None:  # Else, suggest a random point
-            if self.tr_manager:
+            if tr_manager:
                 x_next = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
                                                               search_space=self.search_space,
-                                                              tr_manager=self.tr_manager,
+                                                              tr_manager=tr_manager,
                                                               n_points=1,
                                                               is_numeric=self.is_numeric,
                                                               is_mixed=self.is_mixed,
@@ -196,6 +197,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         return x_next
 
     def _exhaustive_ls(self, x_init: torch.FloatTensor, acq_func: AcqBase, model: ModelBase,
+                       tr_manager: Optional[TrManagerBase],
                        acq_evaluate_kwargs: dict):
         """
         In order to find local minima of an acquisition function, at each vertex,
@@ -210,11 +212,11 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         min_acq = acq_func(x, model, **acq_evaluate_kwargs)
 
         while n_ascent < self.max_n_descent:
-            if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
-                                                    normalize=False) >= self.tr_manager.get_nominal_radius():
+            if tr_manager and hamming_distance(tr_manager.center[self.search_space.nominal_dims].to(x), x,
+                                               normalize=False) >= tr_manager.get_nominal_radius():
                 # To get a neighbour in the TR, need to select a category matching the center category
                 x_neighbours = cartesian_neighbors_center_attracted(x.long(), self.adjacency_mat_list,
-                                                                    x_center=self.tr_manager.center).to(dtype)
+                                                                    x_center=tr_manager.center).to(dtype)
             else:
                 x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
             with torch.no_grad():

@@ -29,7 +29,6 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
 
     def __init__(self,
                  search_space: SearchSpace,
-                 tr_manager: Optional[TrManagerBase] = None,
                  n_iter: int = 50,
                  n_restarts: int = 3,
                  max_n_perturb_num: int = 20,
@@ -39,27 +38,14 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                  dtype: torch.dtype = torch.float32
                  ):
         super(TrBasedInterleavedSearch, self).__init__(search_space, dtype)
-        # if TR manager is None: we set TR to be the entire space
-        if tr_manager is None:
-            tr_manager = TrManagerBase(search_space=search_space, dtype=search_space.dtype)
-            tr_manager.register_radius('numeric', 0, 1, 1)
-            tr_manager.register_radius('nominal', min_radius=0, max_radius=search_space.num_nominal + 1,
-                                       init_radius=search_space.num_nominal + 1)
-            tr_manager.set_center(center=search_space.transform(search_space.sample()))
 
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
-
-        assert tr_manager.get_nominal_radius() > 0, 'Trust Region Manager needs to have a categorical radius'
 
         self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
         self.is_nominal = True if search_space.num_nominal > 0 else False
         self.is_mixed = True if self.is_numeric and self.is_nominal else False
 
-        if self.is_numeric:
-            assert 'numeric' in tr_manager.radii, 'Trust Region Manager needs to have a numeric radius'
-
-        self.tr_manager = tr_manager
         self.n_iter = n_iter
         self.n_restarts = n_restarts
         self.max_n_perturb_num = max_n_perturb_num
@@ -95,18 +81,30 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 tr_manager: Optional[TrManagerBase],
                  **kwargs
                  ) -> torch.Tensor:
 
+        # if TR manager is None: we set TR to be the entire space
+        if tr_manager is None:
+            tr_manager = TrManagerBase(search_space=self.search_space, dtype=self.search_space.dtype)
+            if self.search_space.num_numeric > 0:
+                tr_manager.register_radius('numeric', 0, 1, 1)
+            if self.search_space.num_nominal > 1:
+                tr_manager.register_radius('nominal', min_radius=0, max_radius=self.search_space.num_nominal + 1,
+                                           init_radius=self.search_space.num_nominal + 1)
+            tr_manager.set_center(center=self.search_space.transform(self.search_space.sample()))
+
         if n_suggestions == 1:
-            return self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs)
+            return self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs=acq_evaluate_kwargs,
+                                  tr_manager=tr_manager)
         else:
             x_next = torch.zeros((0, self.search_space.num_dims), dtype=self.dtype)
             model = copy.deepcopy(model)  # create a local copy of the model to be able to retrain it
             x_observed = x_observed.clone()
 
             for i in range(n_suggestions):
-                x_ = self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs)
+                x_ = self._optimize(x, 1, x_observed, model, acq_func, acq_evaluate_kwargs, tr_manager=tr_manager)
                 x_next = torch.cat((x_next, x_), dim=0)
 
                 # No need to add hallucinations during last iteration as the model will not be used
@@ -123,6 +121,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                   model: ModelBase,
                   acq_func: AcqBase,
                   acq_evaluate_kwargs: dict,
+                  tr_manager: Optional[TrManagerBase],
                   ) -> torch.Tensor:
 
         if n_suggestions > 1:
@@ -135,7 +134,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
         x_centre = x.clone()
         x0, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
                                                                           search_space=self.search_space,
-                                                                          tr_manager=self.tr_manager,
+                                                                          tr_manager=tr_manager,
                                                                           n_points=self.n_restarts,
                                                                           is_numeric=self.is_numeric,
                                                                           is_mixed=self.is_mixed,
@@ -195,7 +194,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
 
                         neighbour_nominal = self._mutate_nominal(x_nominal)
                         if 0 <= hamming_distance(x_centre[self.search_space.nominal_dims], neighbour_nominal,
-                                                 normalize=False) <= self.tr_manager.get_nominal_radius():
+                                                 normalize=False) <= tr_manager.get_nominal_radius():
                             is_valid = True
                         else:
                             tol_ -= 1

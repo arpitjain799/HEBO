@@ -9,6 +9,7 @@
 
 import copy
 import warnings
+from typing import Optional
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ from comb_opt.acq_funcs import AcqBase
 from comb_opt.acq_optimizers import AcqOptimizerBase
 from comb_opt.models import ModelBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region import TrManagerBase
 from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.dependant_rounding import DepRound
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
@@ -95,10 +97,14 @@ class MabAcqOptimizer(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
+                 tr_manager: Optional[TrManagerBase],
                  **kwargs
                  ) -> torch.Tensor:
 
         assert (self.n_restarts == 0 and self.n_cand >= n_suggestions) or (self.n_restarts >= n_suggestions)
+
+        if tr_manager is not None:
+            raise RuntimeError("MAB does not support TR for now")  # TODO: handle TR
 
         if self.batch_size != n_suggestions:
             warnings.warn('batch_size used for initialising the algorithm is not equal to n_suggestions received by' + \

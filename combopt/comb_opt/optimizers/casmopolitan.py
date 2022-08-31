@@ -186,7 +186,6 @@ class Casmopolitan(BoBase):
 
         # Initialise the acquisition optimizer
         acq_optim = TrBasedInterleavedSearch(search_space=search_space,
-                                             tr_manager=tr_manager,
                                              n_iter=acq_optim_n_iter,
                                              n_restarts=acq_optim_n_restarts,
                                              max_n_perturb_num=acq_optim_max_n_perturb_num,

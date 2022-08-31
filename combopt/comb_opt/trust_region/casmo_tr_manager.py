@@ -47,8 +47,10 @@ class CasmopolitanTrManager(TrManagerBase):
                  ):
         super(CasmopolitanTrManager, self).__init__(search_space, dtype)
 
-        assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
-            'The Casmopolitan Trust region manager only supports continuous, discrete and nominal variables'
+        assert self.search_space.num_cont + self.search_space.num_disc + self.search_space.num_nominal \
+               == self.search_space.num_dims, \
+            'The Casmopolitan Trust region manager only supports continuous, ' \
+            'discrete and nominal variables'
 
         self.is_numeric = search_space.num_numeric > 0
         self.is_mixed = self.is_numeric and search_space.num_nominal > 0
@@ -95,7 +97,8 @@ class CasmopolitanTrManager(TrManagerBase):
             if self.is_numeric:
                 self.radii['numeric'] = min(self.radii['numeric'] * self.radius_multiplier, self.max_radii['numeric'])
             if self.search_space.num_nominal > 1:
-                self.radii['nominal'] = int(min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
+                self.radii['nominal'] = int(
+                    min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
             if self.verbose:
                 print(f"Expanding trust region...")
 
@@ -182,7 +185,8 @@ class CasmopolitanTrManager(TrManagerBase):
             # Check the numeric and hamming distance
             if ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all() \
                     and hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
-                                         x[:, self.search_space.nominal_dims], False).squeeze() <= self.get_nominal_radius():
+                                         x[:, self.search_space.nominal_dims],
+                                         False).squeeze() <= self.get_nominal_radius():
                 self.data_buffer.append(x, y_observed[i:i + 1])
 
         return x_init

@@ -152,7 +152,8 @@ class BoBase(OptimizerBase, ABC):
 
             # Optimise the acquisition function
             x_remaining = self.acq_optimiser.optimize(best_x, n_remaining, self.data_buffer.x, self.model,
-                                                      self.acq_func, acq_evaluate_kwargs)
+                                                      self.acq_func, acq_evaluate_kwargs=acq_evaluate_kwargs,
+                                                      tr_manager=self.tr_manager)
 
             x_next[idx: idx + n_remaining] = self.search_space.inverse_transform(x_remaining)
 
@@ -221,4 +222,3 @@ class BoBase(OptimizerBase, ABC):
     @property
     def is_mixed(self) -> bool:
         return self.is_nominal and self.is_numeric
-
