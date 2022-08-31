@@ -112,7 +112,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
 
         # Sample initial points
         if self.tr_manager:
-            assert self.tr_manager.radii['nominal'] > 0, "Cannot suggest any neighbors, TR should have been restarted"
+            assert self.tr_manager.get_nominal_radius() > 0, "Cannot suggest any neighbors, TR should have been restarted"
             x_centre = x.clone()
             x_random, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(x_centre=x_centre,
                                                                                     search_space=self.search_space,
@@ -164,7 +164,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         if x_next is None:  # Attempt to grab a neighbour of the suggested points
             for idx in indices:
                 if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
-                                                    normalize=False) >= self.tr_manager.radii['nominal']:
+                                                    normalize=False) >= self.tr_manager.get_nominal_radius():
                     neighbours = cartesian_neighbors_center_attracted(x_greedy_ascent[idx].long(),
                                                                       self.adjacency_mat_list,
                                                                       x_center=self.tr_manager.center)
@@ -211,7 +211,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
 
         while n_ascent < self.max_n_descent:
             if self.tr_manager and hamming_distance(self.tr_manager.center[self.search_space.nominal_dims].to(x), x,
-                                                    normalize=False) >= self.tr_manager.radii['nominal']:
+                                                    normalize=False) >= self.tr_manager.get_nominal_radius():
                 # To get a neighbour in the TR, need to select a category matching the center category
                 x_neighbours = cartesian_neighbors_center_attracted(x.long(), self.adjacency_mat_list,
                                                                     x_center=self.tr_manager.center).to(dtype)

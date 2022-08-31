@@ -50,13 +50,17 @@ class CasmopolitanTrManager(TrManagerBase):
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'The Casmopolitan Trust region manager only supports continuous, discrete and nominal variables'
 
-        self.register_radius('numeric', min_num_radius, max_num_radius, init_num_radius)
-        self.register_radius('nominal', min_nominal_radius, max_nominal_radius, init_nominal_radius)
-
         self.is_numeric = search_space.num_numeric > 0
         self.is_mixed = self.is_numeric and search_space.num_nominal > 0
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
         self.discrete_choices = get_discrete_choices(search_space)
+
+        # Register radii for useful variable types
+        if search_space.num_numeric > 0:
+            self.register_radius('numeric', min_num_radius, max_num_radius, init_num_radius)
+        #  if there is only one dim for a variable type: do not use TR for it
+        if search_space.num_nominal > 1:
+            self.register_radius('nominal', min_nominal_radius, max_nominal_radius, init_nominal_radius)
 
         self.verbose = verbose
         self.model = model
@@ -90,7 +94,7 @@ class CasmopolitanTrManager(TrManagerBase):
             self.succ_count = 0
             if self.is_numeric:
                 self.radii['numeric'] = min(self.radii['numeric'] * self.radius_multiplier, self.max_radii['numeric'])
-            if self.search_space.num_nominal > 0:
+            if self.search_space.num_nominal > 1:
                 self.radii['nominal'] = int(min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
             if self.verbose:
                 print(f"Expanding trust region...")
@@ -99,7 +103,7 @@ class CasmopolitanTrManager(TrManagerBase):
             self.fail_count = 0
             if self.is_numeric:
                 self.radii['numeric'] = self.radii['numeric'] / self.radius_multiplier
-            if self.search_space.num_nominal > 0:
+            if self.search_space.num_nominal > 1:
                 self.radii['nominal'] = int(self.radii['nominal'] / self.radius_multiplier)
             if self.verbose:
                 print(f"Shrinking trust region...")
@@ -178,7 +182,7 @@ class CasmopolitanTrManager(TrManagerBase):
             # Check the numeric and hamming distance
             if ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all() \
                     and hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
-                                         x[:, self.search_space.nominal_dims], False).squeeze() < self.radii['nominal']:
+                                         x[:, self.search_space.nominal_dims], False).squeeze() <= self.get_nominal_radius():
                 self.data_buffer.append(x, y_observed[i:i + 1])
 
         return x_init

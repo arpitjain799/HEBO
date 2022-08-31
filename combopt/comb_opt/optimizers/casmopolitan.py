@@ -77,46 +77,47 @@ class Casmopolitan(BoBase):
             assert isinstance(restart_n_cand, int)
             assert restart_n_cand > 0
 
-        # Trust region for numeric variables
-        if tr_min_num_radius is None:
-            tr_min_num_radius = 2 ** -5
-        else:
-            assert 0 < tr_min_num_radius <= 1, \
-                'Numeric variables are normalised to the interval [0, 1]. Please specify appropriate Trust Region Bounds'
-
-        if tr_max_num_radius is None:
-            tr_max_num_radius = 1
-        else:
-            assert 0 < tr_max_num_radius <= 1, \
-                'Numeric variables are normalised to the interval [0, 1]. Please specify appropriate Trust Region Bounds'
-
-        if tr_init_num_radius is None:
-            tr_init_num_radius = 0.8 * tr_max_num_radius
-        else:
+        # Trust region for numeric variables (only if needed)
+        if search_space.num_numeric > 0:
+            if tr_min_num_radius is None:
+                tr_min_num_radius = 2 ** -5
+            else:
+                assert 0 < tr_min_num_radius <= 1, \
+                    'Numeric variables are normalised to the interval [0, 1]. Please specify appropriate Trust Region Bounds'
+            if tr_max_num_radius is None:
+                tr_max_num_radius = 1
+            else:
+                assert 0 < tr_max_num_radius <= 1, \
+                    'Numeric variables are normalised to the interval [0, 1]. Please specify appropriate Trust Region Bounds'
+            if tr_init_num_radius is None:
+                tr_init_num_radius = 0.8 * tr_max_num_radius
+            else:
+                assert tr_min_num_radius < tr_init_num_radius <= tr_max_num_radius
             assert tr_min_num_radius < tr_init_num_radius <= tr_max_num_radius
-
-        assert tr_min_num_radius < tr_init_num_radius <= tr_max_num_radius
-
-        if tr_min_nominal_radius is None:
-            tr_min_nominal_radius = 1
         else:
-            assert 1 <= tr_min_nominal_radius <= search_space.num_nominal
+            tr_min_num_radius = tr_init_num_radius = tr_max_num_radius = None
 
-        if tr_max_nominal_radius is None:
-            tr_max_nominal_radius = search_space.num_nominal
-        else:
-            assert 1 <= tr_max_nominal_radius <= search_space.num_nominal
+        # Trust region for nominal variables (only if needed)
+        if search_space.num_nominal > 1:
+            if tr_min_nominal_radius is None:
+                tr_min_nominal_radius = 1
+            else:
+                assert 1 <= tr_min_nominal_radius <= search_space.num_nominal
 
-        if tr_init_nominal_radius is None:
-            tr_init_nominal_radius = int(0.8 * tr_max_nominal_radius)
-        else:
-            if search_space.num_nominal > 1:
-                assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius
+            if tr_max_nominal_radius is None:
+                tr_max_nominal_radius = search_space.num_nominal
+            else:
+                assert 1 <= tr_max_nominal_radius <= search_space.num_nominal
+
+            if tr_init_nominal_radius is None:
+                tr_init_nominal_radius = int(0.8 * tr_max_nominal_radius)
             else:
                 assert tr_min_nominal_radius <= tr_init_nominal_radius <= tr_max_nominal_radius
 
-        assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius, (
-            tr_min_nominal_radius, tr_init_nominal_radius, tr_max_nominal_radius)
+            assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius, (
+                tr_min_nominal_radius, tr_init_nominal_radius, tr_max_nominal_radius)
+        else:
+            tr_min_nominal_radius = tr_init_nominal_radius = tr_max_nominal_radius = None
 
         if tr_radius_multiplier is None:
             tr_radius_multiplier = 1.5

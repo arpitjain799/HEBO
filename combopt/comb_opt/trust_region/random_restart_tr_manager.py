@@ -79,7 +79,7 @@ class RandomRestartTrManager(TrManagerBase):
             self.succ_count = 0
             if self.is_numeric:
                 self.radii['numeric'] = min(self.radii['numeric'] * self.radius_multiplier, self.max_radii['numeric'])
-            if self.search_space.num_nominal > 0:
+            if self.search_space.num_nominal > 1:
                 self.radii['nominal'] = int(
                     min(self.radii['nominal'] * self.radius_multiplier, self.max_radii['nominal']))
             if self.verbose:
@@ -89,7 +89,7 @@ class RandomRestartTrManager(TrManagerBase):
             self.fail_count = 0
             if self.is_numeric:
                 self.radii['numeric'] = self.radii['numeric'] / self.radius_multiplier
-            if self.search_space.num_nominal > 0:
+            if self.search_space.num_nominal > 1:
                 self.radii['nominal'] = int(self.radii['nominal'] / self.radius_multiplier)
             if self.verbose:
                 print(f"Shrinking trust region...")
@@ -142,7 +142,7 @@ class RandomRestartTrManager(TrManagerBase):
             # Check the numeric and hamming distance
             if ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all() \
                     and hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
-                                         x[:, self.search_space.nominal_dims], False).squeeze() < self.radii['nominal']:
+                                         x[:, self.search_space.nominal_dims], False).squeeze() <= self.get_nominal_radius():
                 self.data_buffer.append(x, y_observed[i:i + 1])
 
         return x_init

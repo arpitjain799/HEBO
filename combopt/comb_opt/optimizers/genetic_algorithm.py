@@ -347,16 +347,16 @@ class GeneticAlgorithm(OptimizerBase):
             d_x1 = hamming_distance(self.tr_center.unsqueeze(0), x1_.unsqueeze(0), False)[0]
             d_x2 = hamming_distance(self.tr_center.unsqueeze(0), x2_.unsqueeze(0), False)[0]
 
-            if d_x1 > self.tr_manager.radii['nominal']:
+            if d_x1 > self.tr_manager.get_nominal_radius():
                 # Project x1_ back to the trust region
                 mask = x1_ != self.tr_center
-                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x1.item() - self.tr_manager.radii['nominal'], replace=False)
+                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x1.item() - self.tr_manager.get_nominal_radius(), replace=False)
                 x1_[indices] = self.tr_center[indices]
 
-            if d_x2 > self.tr_manager.radii['nominal']:
+            if d_x2 > self.tr_manager.get_nominal_radius():
                 # Project x2_ back to the trust region
                 mask = x2_ != self.tr_center
-                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x2.item() - self.tr_manager.radii['nominal'], replace=False)
+                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x2.item() - self.tr_manager.get_nominal_radius(), replace=False)
                 x2_[indices] = self.tr_center[indices]
 
         else:

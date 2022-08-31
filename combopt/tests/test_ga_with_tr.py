@@ -27,6 +27,6 @@ if __name__ == '__main__':
         y_next = task(x_next)
         optimiser.observe(x_next, y_next)
         dist = hamming_distance(search_space.transform(x_next)[0:1], center.unsqueeze(0), False)[0]
-        print(f"Iteration {i + 1:03d}/{n} Current value: {y_next[0, 0]:.2f} - best value: {optimiser.best_y:.2f} - Hamming distance {dist} / {tr_manager.radii['nominal']}")
-        if dist > tr_manager.radii['nominal']:
+        print(f"Iteration {i + 1:03d}/{n} Current value: {y_next[0, 0]:.2f} - best value: {optimiser.best_y:.2f} - Hamming distance {dist} / {tr_manager.get_nominal_radius()}")
+        if dist > tr_manager.get_nominal_radius():
             raise Exception('\n\nWarning! Last sample was outside of the trust region!\n\n')

@@ -109,3 +109,10 @@ class TrManagerBase(ABC):
         """
 
         pass
+
+    def get_nominal_radius(self):
+        if self.search_space.num_nominal == 1:
+            return 1
+        else:
+            assert "nominal" in self.radii
+            return self.radii["nominal"]

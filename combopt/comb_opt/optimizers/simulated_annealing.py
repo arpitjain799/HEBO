@@ -247,7 +247,7 @@ class SimulatedAnnealing(OptimizerBase):
                 # randomly choose a nominal variable
                 if self.fixed_tr_manager and hamming_distance(
                         self.fixed_tr_manager.center[self.search_space.nominal_dims].to(x), x,
-                        normalize=False) >= self.fixed_tr_manager.radii['nominal']:
+                        normalize=False) >= self.fixed_tr_manager.get_nominal_radius():
                     # choose a dim that won't suggest a neighbor out of the TR
                     var_idx = np.random.choice(
                         [d for d in self.search_space.nominal_dims if x[d] != self.fixed_tr_manager.center[d]])

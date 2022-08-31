@@ -50,12 +50,14 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
 
-        assert 'numeric' in tr_manager.radii, 'Trust Region Manager needs to have a numeric radius'
-        assert 'nominal' in tr_manager.radii, 'Trust Region Manager needs to have a categorical radius'
+        assert tr_manager.get_nominal_radius() > 0, 'Trust Region Manager needs to have a categorical radius'
 
         self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
         self.is_nominal = True if search_space.num_nominal > 0 else False
         self.is_mixed = True if self.is_numeric and self.is_nominal else False
+
+        if self.is_numeric:
+            assert 'numeric' in tr_manager.radii, 'Trust Region Manager needs to have a numeric radius'
 
         self.tr_manager = tr_manager
         self.n_iter = n_iter
@@ -193,7 +195,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
 
                         neighbour_nominal = self._mutate_nominal(x_nominal)
                         if 0 <= hamming_distance(x_centre[self.search_space.nominal_dims], neighbour_nominal,
-                                                 normalize=False) <= self.tr_manager.radii['nominal']:
+                                                 normalize=False) <= self.tr_manager.get_nominal_radius():
                             is_valid = True
                         else:
                             tol_ -= 1
