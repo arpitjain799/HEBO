@@ -143,7 +143,7 @@ class GeneticAlgorithm(OptimizerBase):
 
         self.x_queue = self.search_space.sample(self.pop_size)
 
-    def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
         assert n_suggestions <= self.pop_size
 
         idx = 0

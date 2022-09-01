@@ -1,6 +1,11 @@
 import os
 from pathlib import Path
 
+import sys
+
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
+sys.path[0] = ROOT_PROJECT
+
 import torch
 
 from comb_opt.factory import task_factory
@@ -19,7 +24,7 @@ if __name__ == '__main__':
     optimizer.set_x_init(x_init)
 
     for i in range(200):
-        x_next = optimizer.suggest(1)
+        x_next = optimizer.suggest(2)
         y_next = task(x_next)
         optimizer.observe(x_next, y_next)
         print(f'Iteration {i + 1:>4d} - f(x) {optimizer.best_y:.3f}')

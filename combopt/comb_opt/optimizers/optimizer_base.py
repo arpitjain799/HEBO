@@ -40,6 +40,18 @@ class OptimizerBase(ABC):
         self.data_buffer = DataBuffer(self.search_space, 1, self.dtype)
 
     @abstractmethod
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+        """
+        Function used to suggest next query points.
+        Should return a pandas dataframe with shape (n_suggestions, D) where
+        D is the dimensionality of the problem. The column dtype may mismatch expected dtype (e.g. float for int)
+
+        :param n_suggestions: number of suggestions
+        :return: a DataFrame of suggestions
+        """
+
+    pass
+
     def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
         """
         Function used to suggest next query points. Should return a pandas dataframe with shape (n_suggestions, D) where
@@ -48,7 +60,10 @@ class OptimizerBase(ABC):
         :param n_suggestions:
         :return:
         """
-        pass
+        suggestions = self.method_suggest(n_suggestions)
+        # Convert the dtype of each column to proper dtype
+        sample = self.search_space.sample(1)
+        return suggestions.astype({column_name: sample.dtypes[column_name] for column_name in sample})
 
     @abstractmethod
     def observe(self, x: pd.DataFrame, y: np.ndarray):

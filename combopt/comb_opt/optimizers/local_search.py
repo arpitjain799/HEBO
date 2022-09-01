@@ -85,7 +85,7 @@ class LocalSearch(OptimizerBase):
             self._current_y = best_y
             self._current_x = x[best_idx: best_idx + 1]
 
-    def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
         idx = 0
         n_remaining = n_suggestions

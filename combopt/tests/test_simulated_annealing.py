@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+import sys
+
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
+sys.path[0] = ROOT_PROJECT
 
 import torch
 
@@ -11,7 +15,7 @@ if __name__ == '__main__':
 
     task, search_space = task_factory('levy', torch.float32, num_dims=10, variable_type='nominal', num_categories=21)
 
-    optimiser = SimulatedAnnealing(search_space, n_init=10, allow_repeating_suggestions=False)
+    optimiser = SimulatedAnnealing(search_space, allow_repeating_suggestions=False)
 
     for i in range(500):
         x_next = optimiser.suggest(1)

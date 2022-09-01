@@ -100,7 +100,7 @@ class BoBase(OptimizerBase, ABC):
             self.best_y = best_y
             self._best_x = x[best_idx: best_idx + 1]
 
-    def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
         if self.tr_manager is not None:
             self.x_init = self.tr_manager.suggest_new_tr(self.n_init,

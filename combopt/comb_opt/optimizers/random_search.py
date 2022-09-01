@@ -30,7 +30,7 @@ class RandomSearch(OptimizerBase):
         self.x_init = search_space.sample(0)
         super(RandomSearch, self).__init__(search_space, dtype)
 
-    def suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
         # Create a Dataframe that will store the candidates
         idx = 0
         n_remaining = n_suggestions

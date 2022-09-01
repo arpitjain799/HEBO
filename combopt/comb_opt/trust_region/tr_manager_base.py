@@ -110,7 +110,11 @@ class TrManagerBase(ABC):
 
         pass
 
-    def get_nominal_radius(self):
+    def get_nominal_radius(self) -> float:
+        """
+        Return the radius associated to nominal variables (note that if there is only one nominal dimension in
+        the search space, the radius is always 1)
+        """
         if self.search_space.num_nominal == 1:
             return 1
         else:

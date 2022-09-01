@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+import sys
+
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
+sys.path[0] = ROOT_PROJECT
 
 import torch
 
