@@ -7,6 +7,7 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 import copy
+import math
 from typing import Optional, Union
 
 import torch
@@ -116,7 +117,7 @@ class GpToSaTRAcqOptim(BoBase):
                 assert 1 <= tr_max_nominal_radius <= search_space.num_nominal
 
             if tr_init_nominal_radius is None:
-                tr_init_nominal_radius = int(0.8 * tr_max_nominal_radius)
+                tr_init_nominal_radius = math.ceil(0.8 * tr_max_nominal_radius)
             else:
                 assert tr_min_nominal_radius <= tr_init_nominal_radius <= tr_max_nominal_radius
 
