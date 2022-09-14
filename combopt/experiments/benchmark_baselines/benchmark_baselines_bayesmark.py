@@ -13,14 +13,15 @@ from comb_opt.utils.experiment_utils import run_experiment
 
 if __name__ == '__main__':
     task_name = 'bayesmark'
+    dtype = torch.float32
+    bo_n_init = 20
+    bo_device = torch.device('cuda:1')
+    max_num_iter = 200
+    random_seeds = [42, 43, 44, 45, 46]
+
     for model_name in ["lasso", "linear"]:
         for database_id in ["diabetes", "boston"]:
             task_kwargs = {'model_name': model_name, "metric": "mae", "database_id": database_id}
-            bo_n_init = 20
-            bo_device = torch.device('cuda:1')
-            max_num_iter = 200
-            dtype = torch.float32
-            random_seeds = [42, 43, 44, 45, 46]
 
             task, search_space = task_factory(task_name, dtype, **task_kwargs)
 

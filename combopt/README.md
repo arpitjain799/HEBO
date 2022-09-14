@@ -48,6 +48,7 @@ Install the package itself
 - EDA Sequence and Parameter Optimisation (AIG sequence and parameter optimisation)
 - MIG Sequence Optimisation
 - Bayesmark hyperparameter tuning tasks
+- XG-Boost hyperparameter tuning
 
 ### How to access a task
 
@@ -90,3 +91,18 @@ if __name__ == '__main__':
         optimizer.observe(x, y)
         print(f'Iteration {i+1:3d}/{100:3d} - f(x) = {y:.3f} - f(x*) = {optimizer.best_y:.3f}')
 ```
+
+## Contribute
+
+### Adding a task
+
+- The task should be a class inheriting [TaskBase](./comb_opt/tasks/task_base.py)
+- Create a folder containing the code of the new task in the [tasks folder](./comb_opt/tasks).
+- The folder can also contain a README providing a description of the task, associated search_space, dependencies 
+- Add the new task to the [factory script](./comb_opt/factory.py) (prefer local import of the new task class if it
+depends on packages not listed in [requirements.txt](./requirements.txt).
+- Add reference to the task in the present README.md in the dedicated section.
+
+### Adding an optimizer
+
+\#TODO

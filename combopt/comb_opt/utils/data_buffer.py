@@ -28,7 +28,7 @@ class DataBuffer(ABC):
 
     def append(self, x: torch.Tensor, y: torch.Tensor):
         assert x.ndim == 2
-        assert y.ndim == 2
+        assert y.ndim == 2, y
         assert len(x) == len(y)
         assert y.shape[1] == self.num_out
 

@@ -142,6 +142,11 @@ def search_space_factory(task_name: str, dtype: torch.dtype, **kwargs) -> Search
         for i in range(1, seq_len + 1):
             params.append({'name': f'op_{i}', 'type': 'nominal', 'categories': operation_names})
 
+    elif task_name == 'xgboost_opt':
+        assert 'dataset_id' in kwargs
+        dataset_id = kwargs.get('dataset_id')
+        from comb_opt.tasks.xgboost_opt.xgboost_opt_task import XGBoostTask
+        params = XGBoostTask.get_search_space_params(dataset_id=dataset_id)
     else:
         raise NotImplementedError(f'{task_name} is not an implemented task.')
 
@@ -220,6 +225,14 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         seed = kwargs.get("seed", 0)
         task = BayesmarkTask(model_name=model_name, metric=metric, database_id=database_id, seed=seed)
         search_space = SearchSpace(params=task.params, dtype=dtype)
+
+    elif task_name == "xgboost_opt":
+        dataset_id = kwargs.get("dataset_id", "mnist")
+        split = kwargs.get("split", .3)
+        split_seed = kwargs.get("split_seed", 0)
+        search_space = search_space_factory(task_name=task_name, dtype=dtype, dataset_id=dataset_id)
+        from comb_opt.tasks.xgboost_opt.xgboost_opt_task import XGBoostTask
+        task = XGBoostTask(dataset_id=dataset_id, split=split, split_seed=split_seed)
 
     elif "aig_optimization" in task_name:
         from comb_opt.tasks.eda_seq_opt.eda_seq_opt_task import EDASeqOptimization
