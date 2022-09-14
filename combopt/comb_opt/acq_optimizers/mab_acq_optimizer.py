@@ -18,11 +18,14 @@ from torch.quasirandom import SobolEngine
 from comb_opt.acq_funcs import AcqBase
 from comb_opt.acq_optimizers import AcqOptimizerBase
 from comb_opt.models import ModelBase
+from comb_opt.optimizers.multi_armed_bandit import MultiArmedBandit
 from comb_opt.search_space import SearchSpace
+from comb_opt.search_space.search_space import SearchSpaceSubSet
 from comb_opt.trust_region import TrManagerBase
-from comb_opt.utils.data_buffer import DataBuffer
-from comb_opt.utils.dependant_rounding import DepRound
+from comb_opt.utils.discrete_vars_utils import get_discrete_choices
+from comb_opt.utils.discrete_vars_utils import round_discrete_vars
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
+from comb_opt.utils.data_buffer import DataBuffer
 
 
 class MabAcqOptimizer(AcqOptimizerBase):
@@ -32,6 +35,7 @@ class MabAcqOptimizer(AcqOptimizerBase):
                  acq_func: AcqBase,
                  batch_size: int = 1,
                  max_n_iter: int = 200,
+                 mab_resample_tol: int = 500,
                  n_cand: int = 5000,
                  n_restarts: int = 5,
                  cont_optimizer: str = 'adam',
@@ -40,8 +44,8 @@ class MabAcqOptimizer(AcqOptimizerBase):
                  dtype: torch.dtype = torch.float32,
                  ):
 
-        assert search_space.num_dims == search_space.num_cont + search_space.num_nominal, \
-            'The Multi-armed bandit acquisition optimizer only supports continuous and nominal variables.'
+        assert search_space.num_dims == search_space.num_cont + search_space.num_disc + search_space.num_nominal + search_space.num_ordinal, \
+            'The Mixed MAB acquisition optimizer does not support permutation variables.'
 
         assert n_cand >= n_restarts, \
             'The number of random candidates must be > number of points selected for gradient based optimisation'
@@ -60,35 +64,26 @@ class MabAcqOptimizer(AcqOptimizerBase):
         # Algorithm initialisation
         if search_space.num_cont > 0:
             seed = np.random.randint(int(1e6))
-            self.sobol_engine = SobolEngine(search_space.num_cont, scramble=True, seed=seed)
+            self.sobol_engine = SobolEngine(search_space.num_numeric, scramble=True, seed=seed)
 
-        best_ube = 2 * max_n_iter / 3  # Upper bound estimate
+        self.mab_search_space = SearchSpaceSubSet(search_space, nominal_dims=True, ordinal_dims=True, dtype=dtype)
+        self.mab = MultiArmedBandit(search_space=self.mab_search_space,
+                                    batch_size=batch_size,
+                                    max_n_iter=max_n_iter,
+                                    noisy_black_box=True,
+                                    resample_tol=mab_resample_tol,
+                                    dtype=dtype)
 
-        self.gamma = []
-        for n_cats in self.n_cats:
-            if n_cats > batch_size:
-                self.gamma.append(np.sqrt(n_cats * np.log(n_cats / batch_size) / (
-                        (np.e - 1) * batch_size * best_ube)))
-            else:
-                self.gamma.append(np.sqrt(n_cats * np.log(n_cats) / ((np.e - 1) * best_ube)))
+        self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
+        self.cat_dims = np.sort(self.search_space.nominal_dims + self.search_space.ordinal_dims).tolist()
 
-        self.weights = [np.ones(C) for C in self.n_cats]
-        self.prob_dist = None
+        # Dimensions of discrete variables in tensors containing only numeric variables
+        self.disc_dims_in_numeric = [i + len(self.search_space.cont_dims) for i in
+                                     range(len(self.search_space.disc_dims))]
 
-        self.inverse_mapping = [(self.search_space.cont_dims + self.search_space.nominal_dims).index(i) for i in
-                                range(self.search_space.num_dims)]
+        self.discrete_choices = get_discrete_choices(search_space)
 
-    def update_mab_prob_dist(self):
-
-        prob_dist = []
-
-        for j in range(len(self.n_cats)):
-            weights = self.weights[j]
-            gamma = self.gamma[j]
-            norm = float(sum(weights))
-            prob_dist.append(list((1.0 - gamma) * (w / norm) + (gamma / len(weights)) for w in weights))
-
-        self.prob_dist = prob_dist
+        self.inverse_mapping = [(self.numeric_dims + self.cat_dims).index(i) for i in range(self.search_space.num_dims)]
 
     def optimize(self,
                  x: torch.Tensor,
@@ -119,54 +114,52 @@ class MabAcqOptimizer(AcqOptimizerBase):
         else:
             model = model
 
-        # Update the probability distribution of each Multi-armed bandit
-        self.update_mab_prob_dist()
-
         if self.search_space.num_nominal > 0 and self.search_space.num_cont > 0:
 
-            x_nominal = self.sample_nominal(n_suggestions)
+            x_cat = self.mab_search_space.transform(self.mab.suggest(n_suggestions))
 
-            x_nominal_unique, x_nominal_counts = torch.unique(x_nominal, return_counts=True, dim=0)
+            x_cat_unique, x_cat_counts = torch.unique(x_cat, return_counts=True, dim=0)
 
-            for idx, curr_x_nominal in enumerate(x_nominal_unique):
+            for idx, curr_x_cat in enumerate(x_cat_unique):
 
                 if len(x_next):
                     # Add the last point to the model and retrain it
-                    add_hallucinations_and_retrain_model(model, x_next[-x_nominal_counts[idx - 1].item()])
+                    add_hallucinations_and_retrain_model(model, x_next[-x_cat_counts[idx - 1].item()])
 
-                x_cont_ = self.optimize_x_cont(curr_x_nominal, x_nominal_counts[idx], model, acq_evaluate_kwargs)
-                x_nominal_ = curr_x_nominal * torch.ones((x_nominal_counts[idx], curr_x_nominal.shape[0]))
+                x_numeric_ = self.optimize_x_numeric(curr_x_cat, x_cat_counts[idx], model, acq_evaluate_kwargs)
+                x_cat_ = curr_x_cat * torch.ones((x_cat_counts[idx], curr_x_cat.shape[0]))
 
-                x_next = torch.cat((x_next, self.reconstruct_x(x_cont_, x_nominal_)))
+                x_next = torch.cat((x_next, self.reconstruct_x(x_numeric_, x_cat_)))
 
         elif self.search_space.num_cont > 0:
-            x_next = torch.cat((x_next, self.optimize_x_cont(torch.tensor([]), n_suggestions, acq_func)))
+            x_next = torch.cat((x_next, self.optimize_x_numeric(torch.tensor([]), n_suggestions, acq_func)))
 
         elif self.search_space.num_nominal > 0:
             x_next = torch.cat((x_next, self.sample_nominal(n_suggestions)))
+
         return x_next
 
-    def optimize_x_cont(self, x_nominal: torch.Tensor,
-                        n_suggestions: int,
-                        model: ModelBase,
-                        acq_evaluate_kwargs: dict,
-                        ):
+    def optimize_x_numeric(self, x_cat: torch.Tensor,
+                           n_suggestions: int,
+                           model: ModelBase,
+                           acq_evaluate_kwargs: dict,
+                           ):
 
         # Make a copy of the acquisition function if necessary to avoid changing original model parameters
         if n_suggestions > 1:
             model = copy.deepcopy(model)
 
-        x_cont = torch.zeros((0, self.search_space.num_cont), dtype=self.dtype)
+        output = torch.zeros((0, self.search_space.num_numeric), dtype=self.dtype)
 
         for i in range(n_suggestions):
 
-            if len(x_cont) > 0:
-                add_hallucinations_and_retrain_model(model, self.reconstruct_x(x_cont[-1], x_nominal))
+            if len(output) > 0:
+                add_hallucinations_and_retrain_model(model, self.reconstruct_x(output[-1], x_cat))
 
             # Sample x_cont
-            x_cont_cand = self.sobol_engine.draw(self.n_cand)  # Note that this assumes x in [0, 1]
+            x_numeric_cand = self.sobol_engine.draw(self.n_cand)  # Note that this assumes x in [0, 1]
 
-            x_cand = self.reconstruct_x(x_cont_cand, x_nominal * torch.ones((self.n_cand, x_nominal.shape[0])))
+            x_cand = self.reconstruct_x(x_numeric_cand, x_cat * torch.ones((self.n_cand, x_cat.shape[0])))
 
             # Evaluate all random samples
             with torch.no_grad():
@@ -181,19 +174,19 @@ class MabAcqOptimizer(AcqOptimizerBase):
 
                 for x_ in x_local_cand:
 
-                    x_cont_, x_nominal_ = x_[self.search_space.cont_dims], x_[self.search_space.nominal_dims]
-                    x_cont_.requires_grad_(True)
+                    x_numeric_, x_cat_ = x_[self.numeric_dims], x_[self.search_space.nominal_dims]
+                    x_numeric_.requires_grad_(True)
 
                     if self.cont_optimizer == 'adam':
-                        optimizer = torch.optim.Adam([{"params": x_cont_}], lr=self.cont_lr)
+                        optimizer = torch.optim.Adam([{"params": x_numeric_}], lr=self.cont_lr)
                     elif self.cont_optimizer == 'sgd':
-                        optimizer = torch.optim.SGD([{"params": x_cont_}], lr=self.cont_lr)
+                        optimizer = torch.optim.SGD([{"params": x_numeric_}], lr=self.cont_lr)
                     else:
-                        raise NotImplementedError(f'optimiser {self.num_optimiser} is not implemented.')
+                        raise NotImplementedError(f'optimizer {self.num_optimizer} is not implemented.')
 
                     for _ in range(self.cont_n_iter):
                         optimizer.zero_grad()
-                        x_cand = self.reconstruct_x(x_cont_, x_nominal_)
+                        x_cand = self.reconstruct_x(x_numeric_, x_cat_)
                         acq_x = self.acq_func(x_cand, model, **acq_evaluate_kwargs)
 
                         try:
@@ -203,42 +196,28 @@ class MabAcqOptimizer(AcqOptimizerBase):
                             print('Exception occurred during backpropagation. NaN encountered?')
                             pass
                         with torch.no_grad():
-                            x_cont_.data = torch.clip(x_cont_, min=0, max=1)
+                            x_numeric_.data = round_discrete_vars(x_numeric_, self.disc_dims_in_numeric,
+                                                                  self.discrete_choices)
+                            x_numeric_.data = torch.clip(x_numeric_, min=0, max=1)
 
-                    x_cont_.requires_grad_(False)
+                    x_numeric_.requires_grad_(False)
 
                     if best_acq is None or acq_x < best_acq:
                         best_acq = acq_x.item()
-                        x_cont_best = x_cont_
+                        x_cont_best = x_numeric_
 
             else:
-                x_cont_best = x_cont_cand[acq.argsort()[0]]
+                x_cont_best = x_numeric_cand[acq.argsort()[0]]
 
-            x_cont = torch.cat((x_cont, x_cont_best.unsqueeze(0)))
+            output = torch.cat((output, x_cont_best.unsqueeze(0)))
 
-        return x_cont
+        return output
 
-    def sample_nominal(self, n_suggestions):
-
-        x_nominal = np.zeros((n_suggestions, self.search_space.num_nominal))
-
-        for j, num_cat in enumerate(self.n_cats):
-            # draw a batch here
-            if 1 < n_suggestions < num_cat:
-                ht = DepRound(self.prob_dist[j], k=n_suggestions)
-            else:
-                ht = np.random.choice(num_cat, n_suggestions, p=self.prob_dist[j])
-
-            # ht_batch_list size: len(self.C_list) x B
-            x_nominal[:, j] = ht[:]
-
-        return torch.tensor(x_nominal, dtype=self.dtype)
-
-    def reconstruct_x(self, x_cont: torch.Tensor, x_nominal: torch.Tensor) -> torch.Tensor:
-        if x_cont.ndim == x_nominal.ndim == 1:
-            return torch.cat((x_cont, x_nominal))[self.inverse_mapping]
+    def reconstruct_x(self, x_numeric: torch.Tensor, x_cat: torch.Tensor) -> torch.Tensor:
+        if x_numeric.ndim == x_cat.ndim == 1:
+            return torch.cat((x_numeric, x_cat))[self.inverse_mapping]
         else:
-            return torch.cat((x_cont, x_nominal), dim=1)[:, self.inverse_mapping]
+            return torch.cat((x_numeric, x_cat), dim=1)[:, self.inverse_mapping]
 
     def post_observe_method(self, x: torch.Tensor, y: torch.Tensor, data_buffer: DataBuffer, n_init: int, **kwargs):
         """
@@ -251,52 +230,15 @@ class MabAcqOptimizer(AcqOptimizerBase):
         :param kwargs:
         :return:
         """
-        if len(data_buffer) <= n_init:
+        if len(data_buffer) < n_init:
+            return
+        elif len(data_buffer) == n_init:
+            x_cat_init = self.mab_search_space.inverse_transform(data_buffer.x[:, self.cat_dims])
+            y_init = data_buffer.y.cpu().numpy()
+            self.mab.initialize(x_cat_init, y_init)
             return
 
-        x_observed, y_observed = data_buffer.x, data_buffer.y
+        x_cat = self.mab_search_space.inverse_transform(x[:, self.cat_dims])
+        y = y.cpu().numpy()
 
-        # Compute the MAB rewards for each of the suggested categories
-        mab_rewards = torch.zeros((len(x), self.search_space.num_nominal), dtype=self.dtype)
-
-        # Iterate over the batch
-        for batch_idx in range(len(x)):
-            x_nominal_next = x[batch_idx, self.search_space.nominal_dims]
-
-            # Iterate over all categorical variables
-            for dim_dix in range(self.search_space.num_nominal):
-                indices = x_observed[:, self.search_space.nominal_dims][:, dim_dix] == x_nominal_next[dim_dix]
-
-                # In MAB, we aim to maximise the reward, hence, take negative of bb values
-                rewards = - y_observed[indices]
-
-                if len(rewards) == 0:
-                    reward = torch.tensor(0., dtype=self.dtype)
-                else:
-                    # Map rewards to range[-0.5, 0.5]
-                    reward = 2 * (rewards.max() - (- y_observed).min()) / (
-                            (- y_observed).max() - (-y_observed).min()) - 1.
-                    # reward = rewards.max()
-
-                mab_rewards[batch_idx, dim_dix] = reward
-
-        # Update the probability distribution
-        x_nominal = x[:, self.search_space.nominal_dims]
-
-        for dim_dix in range(self.search_space.num_nominal):
-            weights = self.weights[dim_dix]
-            num_cats = self.n_cats[dim_dix]
-            gamma = self.gamma[dim_dix]
-            prob_dist = self.prob_dist[dim_dix]
-
-            x_nominal = x_nominal.to(torch.long)
-            reward = mab_rewards[:, dim_dix]
-            nominal_vars = x_nominal[:, dim_dix]  # 1xB
-            for ii, ht in enumerate(nominal_vars):
-                Gt_ht_b = reward[ii]
-                estimated_reward = 1.0 * Gt_ht_b / prob_dist[ht]
-                # if ht not in self.S0:
-                weights[ht] = (weights[ht] * np.exp(len(mab_rewards) * estimated_reward * gamma / num_cats)).clip(
-                    min=1e-6, max=1e6)
-
-            self.weights[dim_dix] = weights
+        self.mab.observe(x_cat, y)

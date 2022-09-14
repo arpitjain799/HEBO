@@ -93,15 +93,12 @@ class TrManagerBase(ABC):
         self.set_center(self.data_buffer.x_min)
 
     @abstractmethod
-    def suggest_new_tr(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
                        best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
         """
-        Function used to suggest a new trust region with its initialisation if needed . This should be only triggered if
-        the current radius for any of the variables is below the minimum radius. Otherwise, this function should simply
-        return x_init. Note, that this function will be called during every suggest step.
+        Function used to suggest a new trust region centre and neighbouring points
 
         :param n_init:
-        :param x_init:
         :param observed_data_buffer: Data buffer containing all previously observed points
         :param best_y: Used for evaluating some acquisition functions such as the Expected Improvement acquisition
         :param kwargs:

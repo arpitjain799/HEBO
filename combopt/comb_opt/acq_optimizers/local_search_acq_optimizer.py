@@ -26,7 +26,7 @@ from comb_opt.utils.graph_utils import cartesian_neighbors, cartesian_neighbors_
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
 
 
-class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
+class LsAcqOptimizer(AcqOptimizerBase):
     def __init__(self,
                  search_space: SearchSpace,
                  adjacency_mat_list: List[torch.FloatTensor],
@@ -42,7 +42,7 @@ class ExhaustiveLsAcqOptimizer(AcqOptimizerBase):
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_params, \
             'The greedy descent acquisition optimizer only supports nominal and ordinal variables.'
 
-        super(ExhaustiveLsAcqOptimizer, self).__init__(search_space, dtype)
+        super(LsAcqOptimizer, self).__init__(search_space, dtype)
 
         self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
         self.is_nominal = True if search_space.num_nominal > 0 else False

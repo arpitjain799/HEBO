@@ -46,7 +46,7 @@ class AcqOptimizerBase(ABC):
         Function used to optimise the acquisition function. Should return a 2D tensor with shape
         (n_suggestions, n_dims), where n_dims is the dimensionality of x.
 
-        If an optimiser does not support return batches of data, this can be handled by imposing with "assert
+        If an optimizer does not support return batches of data, this can be handled by imposing with "assert
         n_suggestions == 1"
 
 

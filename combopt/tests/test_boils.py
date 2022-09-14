@@ -33,37 +33,41 @@ import torch
 if __name__ == '__main__':
     from comb_opt.factory import task_factory
 
-    n_init = 10
+    n_init = 5
     operator_space_id = "basic"
     seq_operators_pattern_id = "basic"
 
-    task, search_space = task_factory(
-        task_name='aig_optimization',
-        dtype=torch.float32,
-        designs_group_id="i2c",
-        operator_space_id=operator_space_id,
-        seq_operators_pattern_id=seq_operators_pattern_id,
-        n_parallel=1
-    )
+    # task, search_space = task_factory(
+    #     task_name='aig_optimization',
+    #     dtype=torch.float32,
+    #     designs_group_id="i2c",
+    #     operator_space_id=operator_space_id,
+    #     seq_operators_pattern_id=seq_operators_pattern_id,
+    #     n_parallel=1
+    # )
 
-    optimiser = BOiLS(
+    task, search_space = task_factory('levy', torch.float32, num_dims=5, variable_type='nominal', num_categories=3)
+
+
+    optimizer = BOiLS(
         search_space=search_space,
         n_init=n_init,
         device=torch.device('cpu'),
         tr_succ_tol=2,
         tr_fail_tol=20,
+        use_tr=True,
         model_max_training_dataset_size=500,
         tr_min_num_radius=0.5 ** 5,
         tr_max_num_radius=1,
         ls_acq_name='ei',
-        restart_acq_name='lcb'
+        tr_restart_acq_name='lcb'
     )
 
-    for i in range(8):
-        x_next = optimiser.suggest(5)
+    for i in range(40):
+        x_next = optimizer.suggest(1)
         y_next = task(x_next)
-        optimiser.observe(x_next, y_next)
-        print(f'Iteration {i + 1:>4d} - f(x) {optimiser.best_y:.3f}')
+        optimizer.observe(x_next, y_next)
+        print(f'Iteration {i + 1:>4d} - f(x) - {y_next[0][0]:.3f} - f(x*) - {optimizer.best_y:.3f}')
     #
-    # plot_convergence_curve(optimiser, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
-    #                                                      f'{optimiser.name}_test.png'), plot_per_iter=True)
+    # plot_convergence_curve(optimizer, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
+    #                                                      f'{optimizer.name}_test.png'), plot_per_iter=True)

@@ -14,8 +14,9 @@ from comb_opt.optimizers.boss import BOSS
 from comb_opt.optimizers.casmopolitan import Casmopolitan
 from comb_opt.optimizers.cocabo import CoCaBO
 from comb_opt.optimizers.combo import COMBO
-from comb_opt.optimizers.genetic_algorithm import GeneticAlgorithm
+from comb_opt.optimizers.genetic_algorithm import PymooGeneticAlgorithm
 from comb_opt.optimizers.local_search import LocalSearch
+from comb_opt.optimizers.multi_armed_bandit import MultiArmedBandit
 from comb_opt.optimizers.optimizer_base import OptimizerBase
 from comb_opt.optimizers.random_search import RandomSearch
 from comb_opt.optimizers.simulated_annealing import SimulatedAnnealing

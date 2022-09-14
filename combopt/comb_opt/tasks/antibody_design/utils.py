@@ -46,7 +46,9 @@ def get_AbsolutNoLib_dir() -> str:
         f.close()
 
         assert os.path.exists(
-            os.path.join(AbsolutNoLib_dir, 'AbsolutNoLib')), f'AbsolutNoLib can\'t be found in provided directory'
+            os.path.join(AbsolutNoLib_dir,
+                         'AbsolutNoLib')), f'AbsolutNoLib can\'t be found in provided directory {AbsolutNoLib_dir},' \
+                                           f' check path specified in {path}'
         return AbsolutNoLib_dir
 
     except FileNotFoundError as _:

@@ -12,15 +12,207 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
+from pymoo.algorithms.base.genetic import GeneticAlgorithm
+from pymoo.algorithms.soo.nonconvex.ga import FitnessSurvival
+from pymoo.algorithms.soo.nonconvex.ga import comp_by_cv_and_fitness
+from pymoo.core.evaluator import Evaluator
+from pymoo.core.mixed import MixedVariableSampling, MixedVariableMating, MixedVariableDuplicateElimination
+from pymoo.core.population import Population
+from pymoo.core.repair import NoRepair
+from pymoo.core.termination import NoTermination
+from pymoo.operators.selection.rnd import RandomSelection
+from pymoo.operators.selection.tournament import TournamentSelection
+from pymoo.problems.static import StaticProblem
+from pymoo.util.display.single import SingleObjectiveOutput
 
 from comb_opt.optimizers.optimizer_base import OptimizerBase
-from comb_opt.search_space import SearchSpace
+from comb_opt.search_space.search_space import SearchSpace
 from comb_opt.trust_region.tr_manager_base import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.distance_metrics import hamming_distance
+from comb_opt.utils.pymoo_utils import PymooProblem, TrRepair
 
 
-class GeneticAlgorithm(OptimizerBase):
+class PymooMixedVariableGaWithRepair(GeneticAlgorithm):
+
+    def __init__(self,
+                 pop_size=50,
+                 n_offsprings=None,
+                 repair=NoRepair(),
+                 tournament_selection: bool = True,
+                 **kwargs):
+        output = SingleObjectiveOutput()
+        sampling = MixedVariableSampling()
+
+        if tournament_selection:
+            selection = TournamentSelection(func_comp=comp_by_cv_and_fitness)
+        else:
+            selection = RandomSelection()
+
+        mating = MixedVariableMating(selection=selection, eliminate_duplicates=MixedVariableDuplicateElimination(),
+                                     repair=repair)
+
+        eliminate_duplicates = MixedVariableDuplicateElimination()
+        survival = FitnessSurvival()
+
+        super().__init__(pop_size=pop_size, n_offsprings=n_offsprings, sampling=sampling, mating=mating,
+                         eliminate_duplicates=eliminate_duplicates, output=output, survival=survival, repair=repair,
+                         **kwargs)
+
+
+class PymooGeneticAlgorithm(OptimizerBase):
+
+    @property
+    def name(self) -> str:
+        return 'Genetic Algorithm'
+
+    def __init__(self,
+                 search_space: SearchSpace,
+                 pop_size=50,
+                 n_offsprings=None,
+                 fixed_tr_manager: Optional[TrManagerBase] = None,
+                 store_all: bool = False,
+                 tournament_selection: bool = True,
+                 dtype: torch.dtype = torch.float32,
+                 ):
+
+        super(PymooGeneticAlgorithm, self).__init__(search_space, dtype)
+
+        self.store_all = store_all
+        self.pop_size = pop_size
+        self.n_offsprings = n_offsprings
+
+        self._pymoo_pop = []
+        self._x_queue = pd.DataFrame(index=range(0), columns=self.search_space.df_col_names, dtype=float)
+        self._pymoo_x_queue = []
+        self._pymoo_y = np.array([])
+
+        # Used for algorithm initialisation
+        self._pymoo_proxy_problem = PymooProblem(search_space)
+        self.repair = None if fixed_tr_manager is None else TrRepair(search_space, fixed_tr_manager,
+                                                                     self._pymoo_proxy_problem)
+
+        self._pymoo_ga = PymooMixedVariableGaWithRepair(pop_size=pop_size, n_offsprings=n_offsprings,
+                                                        repair=self.repair, tournament_selection=tournament_selection)
+        self._pymoo_ga.setup(problem=self._pymoo_proxy_problem, termination=NoTermination())
+
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+
+        x_next = pd.DataFrame(index=range(n_suggestions), columns=self.search_space.df_col_names, dtype=float)
+
+        if len(self._x_queue) == 0:
+            # ask the algorithm for the next solution to be evaluated
+            self._pymoo_pop = self._pymoo_ga.ask()
+            self._pymoo_x_queue = self._pymoo_pop.get("X")
+            self._x_queue = self._pymoo_proxy_problem.pymoo_to_comb_opt(self._pymoo_x_queue)
+
+        if n_suggestions > len(self._x_queue):
+            raise Exception(
+                'n_suggestions is larger then the number of remaining samples in the current population. To avoid this, ensure that pop_size is a multiple of n_suggestions.')
+
+        x_next.iloc[: n_suggestions] = self._x_queue.iloc[: n_suggestions]
+        self._x_queue = self._x_queue.drop([i for i in range(n_suggestions)]).reset_index(drop=True)
+
+        return x_next
+
+    def observe(self, x: pd.DataFrame, y: np.ndarray):
+
+        if isinstance(y, torch.Tensor):
+            y = y.cpu().numpy()
+
+        # Append the data to the internal data buffer
+        if self.store_all:
+            self.data_buffer.append(self.search_space.transform(x), torch.tensor(y, dtype=self.dtype))
+
+        # update best fx
+        if self.best_y is None:
+            idx = y.flatten().argmin()
+            self.best_y = y[idx, 0].item()
+            self._best_x = x.iloc[idx: idx + 1]
+
+        else:
+            idx = y.flatten().argmin()
+            y_ = y[idx, 0].item()
+
+            if y_ < self.best_y:
+                self.best_y = y_
+                self._best_x = x[idx: idx + 1]
+
+        self._pymoo_y = np.concatenate((self._pymoo_y, y.flatten()))
+
+        if len(self._pymoo_y) == len(self._pymoo_x_queue):
+            static = StaticProblem(self._pymoo_proxy_problem, F=self._pymoo_y)
+            Evaluator().eval(static, self._pymoo_pop)
+
+            # returned the evaluated individuals which have been evaluated
+            self._pymoo_ga.tell(infills=self._pymoo_pop)
+            self._pymoo_y = np.array([])
+
+    def restart(self):
+        """
+        Function used to restart the internal state of the optimizer between different runs on the same task.
+        :return:
+        """
+        self._restart()
+
+        self._pymoo_pop = []
+        self._x_queue = pd.DataFrame(index=range(0), columns=self.search_space.df_col_names, dtype=float)
+        self._pymoo_x_queue = []
+        self._pymoo_y = np.array([])
+
+        # Used for algorithm initialisation
+        self._pymoo_proxy_problem = PymooProblem(self.search_space)
+
+        self._pymoo_ga = PymooMixedVariableGaWithRepair(pop_size=self.pop_size, n_offsprings=self.n_offsprings,
+                                                        repair=self.repair)
+        self._pymoo_ga.setup(self._pymoo_proxy_problem, termination=NoTermination())
+
+    def set_x_init(self, x: pd.DataFrame):
+        """
+        Function to set query points that should be suggested during random exploration
+
+        :param x:
+        :return:
+        """
+
+        self._x_queue = x
+        self._pymoo_x_queue = self._pymoo_proxy_problem.comb_opt_to_pymoo(x)
+        self._pymoo_pop = Population.new("X", self._pymoo_x_queue)
+
+    def initialize(self, x: pd.DataFrame, y: np.ndarray):
+        """
+        Function used to initialise an optimizer with a dataset of observations
+        :param x:
+        :param y:
+        :return:
+        """
+        # Initialise the pymoo algorithm
+        pop = Population.new("X", self._pymoo_proxy_problem.comb_opt_to_pymoo(x))
+        static = StaticProblem(self._pymoo_proxy_problem, F=y.flatten())
+        Evaluator().eval(static, pop)
+        self._pymoo_ga.tell(infills=pop)
+
+        # Set best x and y
+        if self.best_y is None:
+            idx = y.flatten().argmin()
+            self.best_y = y[idx, 0].item()
+            self._best_x = x[idx: idx + 1]
+
+        else:
+            idx = y.flatten().argmin()
+            y_ = y[idx, 0].item()
+
+            if y_ < self.best_y:
+                self.best_y = y_
+                self._best_x = x[idx: idx + 1]
+
+    @property
+    def best_x(self):
+        if self.best_y is not None:
+            return self._best_x
+
+
+class NominalGeneticAlgorithm(OptimizerBase):
 
     @property
     def name(self) -> str:
@@ -33,25 +225,25 @@ class GeneticAlgorithm(OptimizerBase):
                  num_elite: int = 10,
                  store_observations: bool = True,
                  allow_repeating_suggestions: bool = False,
-                 tr_manager: Optional[TrManagerBase] = None,
+                 fixed_tr_manager: Optional[TrManagerBase] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
 
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_dims, \
             'Genetic Algorithm currently supports only nominal and ordinal variables'
 
-        super(GeneticAlgorithm, self).__init__(search_space, dtype)
+        super(NominalGeneticAlgorithm, self).__init__(search_space, dtype)
 
         self.pop_size = pop_size
         self.num_parents = num_parents
         self.num_elite = num_elite
         self.store_observations = store_observations
         self.allow_repeating_suggestions = allow_repeating_suggestions
-        if tr_manager is not None:
-            assert 'nominal' in tr_manager.radii, 'Trust Region manager must contain a radius for nominal variables'
-            assert tr_manager.center is not None, 'Trust Region does not have a centre. Call tr_manager.set_center(center) to set one.'
-        self.tr_manager = tr_manager
-        self.tr_center = None if tr_manager is None else tr_manager.center
+        if fixed_tr_manager is not None:
+            assert 'nominal' in fixed_tr_manager.radii, 'Trust Region manager must contain a radius for nominal variables'
+            assert fixed_tr_manager.center is not None, 'Trust Region does not have a centre. Call tr_manager.set_center(center) to set one.'
+        self.tr_manager = fixed_tr_manager
+        self.tr_center = None if fixed_tr_manager is None else fixed_tr_manager.center
 
         # Ensure that the number of elite samples is even
         if self.num_elite % 2 != 0:
@@ -350,13 +542,15 @@ class GeneticAlgorithm(OptimizerBase):
             if d_x1 > self.tr_manager.get_nominal_radius():
                 # Project x1_ back to the trust region
                 mask = x1_ != self.tr_center
-                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x1.item() - self.tr_manager.get_nominal_radius(), replace=False)
+                indices = np.random.choice([i for i, x in enumerate(mask) if x],
+                                           size=d_x1.item() - self.tr_manager.get_nominal_radius(), replace=False)
                 x1_[indices] = self.tr_center[indices]
 
             if d_x2 > self.tr_manager.get_nominal_radius():
                 # Project x2_ back to the trust region
                 mask = x2_ != self.tr_center
-                indices = np.random.choice([i for i, x in enumerate(mask) if x], size=d_x2.item() - self.tr_manager.get_nominal_radius(), replace=False)
+                indices = np.random.choice([i for i, x in enumerate(mask) if x],
+                                           size=d_x2.item() - self.tr_manager.get_nominal_radius(), replace=False)
                 x2_[indices] = self.tr_center[indices]
 
         else:
@@ -398,3 +592,72 @@ class GeneticAlgorithm(OptimizerBase):
         x_ = x_[:, self.map_to_original]
 
         return x_
+
+#
+# class GeneticAlgorithm(OptimizerBase):
+#
+#     @property
+#     def name(self) -> str:
+#         return 'Genetic Algorithm'
+#
+#     def __init__(self,
+#                  search_space: SearchSpace,
+#                  pop_size: int = 40,
+#                  pymoo_n_offsprings: Optional[int] = None,
+#                  fixed_tr_manager: Optional[TrManagerBase] = None,
+#                  comb_opt_num_parents: int = 20,
+#                  comb_opt_num_elite: int = 10,
+#                  store_observations: bool = True,
+#                  allow_repeating_suggestions: bool = False,
+#                  pymoo_tournament_selection: bool = True,
+#                  dtype: torch.dtype = torch.float32):
+#
+#         if search_space.num_nominal == search_space.num_dims:
+#             self.ga = NominalGeneticAlgorithm(search_space=search_space,
+#                                               pop_size=pop_size,
+#                                               num_parents=comb_opt_num_parents,
+#                                               num_elite=comb_opt_num_elite,
+#                                               store_observations=store_observations,
+#                                               allow_repeating_suggestions=allow_repeating_suggestions,
+#                                               fixed_tr_manager=fixed_tr_manager,
+#                                               dtype=dtype)
+#
+#         else:
+#             self.ga = PymooGeneticAlgorithm(search_space=search_space,
+#                                             pop_size=pop_size,
+#                                             n_offsprings=pymoo_n_offsprings,
+#                                             fixed_tr_manager=fixed_tr_manager,
+#                                             store_all=store_observations,
+#                                             tournament_selection=pymoo_tournament_selection,
+#                                             dtype=dtype)
+#
+#     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+#         return self.ga.method_suggest(n_suggestions)
+#
+#     def observe(self, x: pd.DataFrame, y: np.ndarray):
+#         return self.ga.observe(x, y)
+#
+#     def restart(self):
+#         self.ga.restart()
+#
+#     def set_x_init(self, x: pd.DataFrame):
+#         self.ga.set_x_init(x)
+#
+#     def initialize(self, x: pd.DataFrame, y: np.ndarray):
+#         self.ga.initialize(x, y)
+#
+#     @property
+#     def best_x(self):
+#         return self.ga.best_x
+#
+#
+# if __name__ == '__main__':
+#     from comb_opt.factory import task_factory
+#     from comb_opt.optimizers import PymooGeneticAlgorithm
+#     from comb_opt.trust_region.random_restart_tr_manager import RandomRestartTrManager
+#     from comb_opt.utils.distance_metrics import hamming_distance
+#
+#     if __name__ == '__main__':
+#         task, search_space = task_factory('ackley', num_dims=20, variable_type='nominal', num_categories=5)
+#
+#         self = GeneticAlgorithm(search_space)

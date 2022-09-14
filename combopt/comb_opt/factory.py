@@ -252,9 +252,9 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
                                       op_ind_per_type_dic=task.optim_space.op_ind_per_type_dic)
 
     elif task_name == 'mig_optimization':
-        seq_len = kwargs.get('seq_len', 10)
-        ntk_name = kwargs.get('ntk_name', 'div')
-        objective = kwargs.get('objective', 'size')
+        seq_len = kwargs.get('seq_len', 20)
+        ntk_name = kwargs.get('ntk_name', 'sqrt')
+        objective = kwargs.get('objective', 'both')
 
         task = MigSeqOpt(ntk_name=ntk_name, objective=objective, seq_len=seq_len)
         search_space = search_space_factory('mig_optimization', dtype, seq_len=seq_len)

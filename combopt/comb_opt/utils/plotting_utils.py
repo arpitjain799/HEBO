@@ -57,16 +57,16 @@ def plot_model_prediction(model: ModelBase, x: torch.Tensor, y: torch.Tensor, sa
     plt.close()
 
 
-def plot_convergence_curve(optimiser: Union[OptimizerBase, List[OptimizerBase]], task: TaskBase, save_path: str,
+def plot_convergence_curve(optimizer: Union[OptimizerBase, List[OptimizerBase]], task: TaskBase, save_path: str,
                            plot_per_iter: bool = False):
-    if not isinstance(optimiser, list):
-        optimiser = [optimiser]
+    if not isinstance(optimizer, list):
+        optimizer = [optimizer]
 
     assert save_path.split('.')[-1] in ['png', 'pdf']
-    for optim in optimiser:
+    for optim in optimizer:
         assert len(optim.data_buffer.y) > 0, 'Optimiser has no stored data'
 
-    num_optims = len(optimiser)
+    num_optims = len(optimizer)
     cm = plt.get_cmap('gist_ncar')
     colors = [cm(i // 1 * 1.0 / num_optims) for i in range(num_optims)]
 
@@ -77,7 +77,7 @@ def plot_convergence_curve(optimiser: Union[OptimizerBase, List[OptimizerBase]],
     plt.xlabel('Nb BB function evaluations')
     plt.ylabel(y_label)
 
-    for i, optim in enumerate(optimiser):
+    for i, optim in enumerate(optimizer):
         # Plot the minimum Black-box function value found up to current iteration
         y, _ = torch.cummin(optim.data_buffer.y.flatten(), dim=0)
         y = y.numpy()
@@ -99,17 +99,17 @@ def plot_convergence_curve(optimiser: Union[OptimizerBase, List[OptimizerBase]],
     plt.close()
 
 
-def plot_single_method_regret(optimiser: OptimizerBase, task: TaskBase, save_path: str):
+def plot_single_method_regret(optimizer: OptimizerBase, task: TaskBase, save_path: str):
     assert save_path.split('.')[-1] in ['png', 'pdf']
-    assert len(optimiser.y) > 0, 'Optimiser has no stored data'
+    assert len(optimizer.y) > 0, 'Optimiser has no stored data'
 
     plt.figure()
-    plt.title(f'{optimiser.name} Convergence Curve')
+    plt.title(f'{optimizer.name} Convergence Curve')
     plt.xlabel('Nb BB function evals')
     plt.ylabel('Regret')
-    regret, _ = torch.cummin(optimiser.y.flatten(), dim=0)
+    regret, _ = torch.cummin(optimizer.y.flatten(), dim=0)
     regret = regret.numpy() - task.global_optimum
-    per_iter_regret = optimiser.y.flatten().numpy() - task.global_optimum
+    per_iter_regret = optimizer.y.flatten().numpy() - task.global_optimum
     plt.plot(regret, '-b')
     plt.plot(per_iter_regret, '--r', alpha=0.5)
     plt.grid()

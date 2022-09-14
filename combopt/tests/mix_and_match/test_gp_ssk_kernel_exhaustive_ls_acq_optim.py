@@ -7,7 +7,7 @@ sys.path[0] = ROOT_PROJECT
 
 import torch
 
-from comb_opt.optimizers.mix_and_match.gp_ssk_kernel_exhaustive_ls_acq_optim import GpSskExhaustiveLsAcqOptim
+from comb_opt.optimizers.mix_and_match.gp_ssk_ker_ls_acq_optim import GpSskLsAcqOptim
 from comb_opt.utils.plotting_utils import plot_convergence_curve
 
 if __name__ == '__main__':
@@ -17,13 +17,13 @@ if __name__ == '__main__':
 
     task, search_space = task_factory('levy', dtype, num_dims=5, variable_type='nominal', num_categories=5)
 
-    optimiser = GpSskExhaustiveLsAcqOptim(search_space, n_init=20, dtype=dtype, device=torch.device('cpu'))
+    optimizer = GpSskLsAcqOptim(search_space, n_init=20, dtype=dtype, device=torch.device('cpu'))
 
     for i in range(100):
-        x_next = optimiser.suggest(1)
+        x_next = optimizer.suggest(1)
         y_next = task(x_next)
-        optimiser.observe(x_next, y_next)
-        print(f'Iteration {i + 1:>4d} - f(x) {optimiser.best_y:.3f}')
+        optimizer.observe(x_next, y_next)
+        print(f'Iteration {i + 1:>4d} - f(x) {optimizer.best_y:.3f}')
 
-    plot_convergence_curve(optimiser, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
-                                                         f'{optimiser.name}_test.png'), plot_per_iter=True)
+    plot_convergence_curve(optimizer, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
+                                                         f'{optimizer.name}_test.png'), plot_per_iter=True)

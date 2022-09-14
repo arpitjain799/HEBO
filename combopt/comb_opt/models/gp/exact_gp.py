@@ -57,7 +57,7 @@ class ExactGPModel(ModelBase, torch.nn.Module):
         self.kernel = copy.deepcopy(kernel)
         self.lr = lr
         self.num_epochs = num_epochs
-        self.optimiser = optimizer
+        self.optimizer = optimizer
         self.max_cholesky_size = max_cholesky_size
         self.max_training_dataset_size = max_training_dataset_size
         self.max_batch_size = max_batch_size
@@ -137,10 +137,10 @@ class ExactGPModel(ModelBase, torch.nn.Module):
 
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.gp)
 
-        if self.optimiser == 'adam':
+        if self.optimizer == 'adam':
             opt = torch.optim.Adam([{'params': mll.parameters()}], lr=self.lr)
         else:
-            raise NotImplementedError(f'Optimiser {self.optimiser} was not implemented.')
+            raise NotImplementedError(f'Optimiser {self.optimizer} was not implemented.')
         losses = []
         with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
 

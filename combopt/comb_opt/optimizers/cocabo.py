@@ -38,7 +38,7 @@ class CoCaBO(BoBase):
                  model_noise_constr: Optional[Interval] = None,
                  model_noise_lb: float = 1e-5,
                  model_pred_likelihood: bool = True,
-                 model_optimiser: str = 'adam',
+                 model_optimizer: str = 'adam',
                  model_lr: float = 3e-2,
                  model_num_epochs: int = 100,
                  model_max_cholesky_size: int = 2000,
@@ -46,7 +46,8 @@ class CoCaBO(BoBase):
                  model_max_batch_size: int = 5000,
                  acq_name: str = 'ei',
                  acq_optim_batch_size: int = 1,
-                 optim_max_n_iter: int = 200,
+                 acq_optim_max_n_iter: int = 200,
+                 acq_optim_mab_resample_tol: int = 500,
                  acq_optim_n_cand: Optional[int] = None,
                  acq_optim_n_restarts: int = 5,
                  acq_optim_cont_optimizer: str = 'sgd',
@@ -55,8 +56,8 @@ class CoCaBO(BoBase):
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
-        assert search_space.num_dims == search_space.num_cont + search_space.num_nominal, \
-            'CoCaBO only supports continuous and nominal variables'
+        assert search_space.num_dims == search_space.num_cont + search_space.num_disc + search_space.num_nominal, \
+            'CoCaBO only supports continuous, discrete and nominal variables'
 
         if acq_optim_n_cand is None:
             acq_optim_n_cand = min(100 * search_space.num_dims, 5000)
@@ -87,7 +88,7 @@ class CoCaBO(BoBase):
                              pred_likelihood=model_pred_likelihood,
                              lr=model_lr,
                              num_epochs=model_num_epochs,
-                             optimizer=model_optimiser,
+                             optimizer=model_optimizer,
                              max_cholesky_size=model_max_cholesky_size,
                              max_training_dataset_size=model_max_training_dataset_size,
                              max_batch_size=model_max_batch_size,
@@ -101,7 +102,8 @@ class CoCaBO(BoBase):
         acq_optim = MabAcqOptimizer(search_space=search_space,
                                     acq_func=acq_func,
                                     batch_size=acq_optim_batch_size,
-                                    max_n_iter=optim_max_n_iter,
+                                    max_n_iter=acq_optim_max_n_iter,
+                                    mab_resample_tol=acq_optim_mab_resample_tol,
                                     n_cand=acq_optim_n_cand,
                                     n_restarts=acq_optim_n_restarts,
                                     cont_optimizer=acq_optim_cont_optimizer,

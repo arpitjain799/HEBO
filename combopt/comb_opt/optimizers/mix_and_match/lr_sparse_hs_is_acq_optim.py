@@ -13,32 +13,28 @@ from typing import Optional, Union
 
 import torch
 
-from comb_opt.acq_funcs import acq_factory, SingleObjAcqExpectation
-from comb_opt.acq_optimizers.tr_based_interleaved_search_acq_optimizer import TrBasedInterleavedSearch
-from comb_opt.models.gp.combo_gp import ComboEnsembleGPModel
+from comb_opt.acq_funcs import acq_factory
+from comb_opt.acq_optimizers.interleaved_search_acq_optimizer import InterleavedSearchAcqOptimizer
+from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
-from comb_opt.utils.graph_utils import laplacian_eigen_decomposition
 
 
-class GpDiffusionTrLsAcqOptim(BoBase):
-
+class LrSparseHsTrLsAcqOptim(BoBase):
     @property
     def name(self) -> str:
-        return 'GP (Diffusion) - TR-based LS acq optim'
+        return 'LR (Sparse HS) - TR-based LS acq optim'
 
     def __init__(self,
                  search_space: SearchSpace,
                  n_init: int,
-                 n_models: int = 10,
-                 model_noise_lb: float = 1e-6,
-                 model_n_burn: int = 0,
-                 model_n_burn_init: int = 100,
-                 model_max_training_dataset_size: int = 1000,
-                 model_verbose: bool = False,
-                 acq_name: str = 'ei',
-                 restart_acq_name: str = 'lcb',
+                 model_order: int = 2,
+                 model_estimator: str = 'sparse_horseshoe',
+                 model_a_prior: float = 2.,
+                 model_b_prior: float = 1.,
+                 model_sparse_horseshoe_threshold: float = 0.1,
+                 model_n_gibbs: int = int(1e3),
                  restart_n_cand: Optional[int] = None,
                  acq_optim_n_iter: int = 50,
                  acq_optim_n_restarts: int = 3,
@@ -58,8 +54,8 @@ class GpDiffusionTrLsAcqOptim(BoBase):
                  tr_verbose: bool = False,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
-
                  ):
+
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_params, \
             'This Optimiser only supports nominal and ordinal variables.'
 
@@ -121,29 +117,20 @@ class GpDiffusionTrLsAcqOptim(BoBase):
         if tr_fail_tol is None:
             tr_fail_tol = 40
 
-        # Eigen decomposition of the graph laplacian
-        n_vertices, adjacency_mat_list, fourier_freq_list, fourier_basis_list = laplacian_eigen_decomposition(
-            search_space)
-
-        model = ComboEnsembleGPModel(search_space=search_space,
-                                     fourier_freq_list=fourier_freq_list,
-                                     fourier_basis_list=fourier_basis_list,
-                                     n_vertices=n_vertices,
-                                     adjacency_mat_list=adjacency_mat_list,
-                                     n_models=n_models,
-                                     n_lb=model_noise_lb,
-                                     n_burn=model_n_burn,
-                                     n_burn_init=model_n_burn_init,
-                                     max_training_dataset_size=model_max_training_dataset_size,
-                                     verbose=model_verbose,
-                                     dtype=dtype,
-                                     device=device,
-                                     )
+        model = LinRegModel(search_space=search_space,
+                            order=model_order,
+                            estimator=model_estimator,
+                            a_prior=model_a_prior,
+                            b_prior=model_b_prior,
+                            sparse_horseshoe_threshold=model_sparse_horseshoe_threshold,
+                            n_gibbs=model_n_gibbs,
+                            dtype=dtype,
+                            device=device)
 
         # Initialise the trust region manager
         tr_model = copy.deepcopy(model)
 
-        tr_acq_func = SingleObjAcqExpectation(acq_factory(acq_func_name=restart_acq_name))
+        tr_acq_func = acq_factory(acq_func_name='thompson')
 
         tr_manager = CasmopolitanTrManager(search_space=search_space,
                                            model=tr_model,
@@ -163,19 +150,16 @@ class GpDiffusionTrLsAcqOptim(BoBase):
                                            dtype=dtype,
                                            device=device)
 
-        # Initialise the acquisition function
-        acq_func = SingleObjAcqExpectation(acq_factory(acq_func_name=acq_name))
+        acq_func = acq_factory('thompson')
 
-        acq_optim = TrBasedInterleavedSearch(search_space=search_space,
-                                             tr_manager=tr_manager,
-                                             n_iter=acq_optim_n_iter,
-                                             n_restarts=acq_optim_n_restarts,
-                                             max_n_perturb_num=acq_optim_max_n_perturb_num,
-                                             num_optimizer=acq_optim_num_optimizer,
-                                             num_lr=acq_optim_num_lr,
-                                             nominal_tol=acq_optim_nominal_tol,
-                                             dtype=dtype)
+        acq_optim = InterleavedSearchAcqOptimizer(search_space=search_space,
+                                                  n_iter=acq_optim_n_iter,
+                                                  n_restarts=acq_optim_n_restarts,
+                                                  max_n_perturb_num=acq_optim_max_n_perturb_num,
+                                                  num_optimizer=acq_optim_num_optimizer,
+                                                  num_lr=acq_optim_num_lr,
+                                                  nominal_tol=acq_optim_nominal_tol,
+                                                  dtype=dtype)
 
-        super(GpDiffusionTrLsAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager,
-                                                      dtype,
-                                                      device)
+        super(LrSparseHsTrLsAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager,
+                                                     dtype, device)

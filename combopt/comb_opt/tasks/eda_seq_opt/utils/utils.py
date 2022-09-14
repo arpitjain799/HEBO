@@ -371,18 +371,18 @@ class EDAExpPathManager:
                 seed=seed
             ), "is_running.pkl")
 
-    def eda_seq_opt_optimiser_path(self):
-        return self.get_eda_seq_opt_optimiser_path(
+    def eda_seq_opt_optimizer_path(self):
+        return self.get_eda_seq_opt_optimizer_path(
             task_root_path=self.task_root_path,
             opt_id=self.opt_id,
             seed=self.seed
         )
 
     @staticmethod
-    def get_eda_seq_opt_optimiser_path(task_root_path: str, opt_id: str, seed: int) -> str:
+    def get_eda_seq_opt_optimizer_path(task_root_path: str, opt_id: str, seed: int) -> str:
         return os.path.join(
             EDAExpPathManager.get_eda_seq_opt_result_path_root(
                 task_root_path=task_root_path,
                 opt_id=opt_id,
                 seed=seed
-            ), "optimiser.pkl")
+            ), "optimizer.pkl")

@@ -41,13 +41,13 @@ if __name__ == '__main__':
     #                                   num_categories=[None, 21, None])
     task, search_space = task_factory('levy', torch.float32, num_dims=1, variable_type='nominal', num_categories=21)
 
-    optimiser = Casmopolitan(search_space, n_init=10, tr_fail_tol=4, model_num_epochs=10, device=torch.device('cuda:1'))
+    optimizer = Casmopolitan(search_space, n_init=10, tr_fail_tol=4, model_num_epochs=10, device=torch.device('cuda:1'))
 
     for i in range(20):
-        x_next = optimiser.suggest(2)
+        x_next = optimizer.suggest(2)
         y_next = task(x_next)
-        optimiser.observe(x_next, y_next)
-        print(f'Iteration {i + 1:>4d} - f(x) {optimiser.best_y:.3f}')
+        optimizer.observe(x_next, y_next)
+        print(f'Iteration {i + 1:>4d} - f(x) {optimizer.best_y:.3f}')
 
-    plot_convergence_curve(optimiser, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
-                                                         f'{optimiser.name}_test.png'), plot_per_iter=True)
+    plot_convergence_curve(optimizer, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
+                                                         f'{optimizer.name}_test.png'), plot_per_iter=True)

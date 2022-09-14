@@ -94,17 +94,8 @@ class RandomRestartTrManager(TrManagerBase):
             if self.verbose:
                 print(f"Shrinking trust region...")
 
-    def suggest_new_tr(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
-                       best_y: Optional[Union[float, torch.Tensor]], **kwargs) -> pd.DataFrame:
-
-        trigger_reset = False
-        for variable_type in self.variable_types:
-            if self.radii[variable_type] < self.min_radii[variable_type]:
-                trigger_reset = True
-                break
-
-        if not trigger_reset:
-            return x_init
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
+                       best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
 
         if self.verbose:
             print("Algorithm is stuck in a local optimum. Triggering a guided restart.")
@@ -142,7 +133,8 @@ class RandomRestartTrManager(TrManagerBase):
             # Check the numeric and hamming distance
             if ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all() \
                     and hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
-                                         x[:, self.search_space.nominal_dims], False).squeeze() <= self.get_nominal_radius():
+                                         x[:, self.search_space.nominal_dims],
+                                         False).squeeze() <= self.get_nominal_radius():
                 self.data_buffer.append(x, y_observed[i:i + 1])
 
         return x_init

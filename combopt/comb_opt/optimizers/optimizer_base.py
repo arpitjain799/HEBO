@@ -79,7 +79,7 @@ class OptimizerBase(ABC):
     @abstractmethod
     def restart(self):
         """
-        Function used to restart the internal state of the optimiser between different runs on the same task.
+        Function used to restart the internal state of the optimizer between different runs on the same task.
         :return:
         """
         pass
@@ -97,7 +97,7 @@ class OptimizerBase(ABC):
     @abstractmethod
     def initialize(self, x: pd.DataFrame, y: np.ndarray):
         """
-        Function used to initialise an optimiser with a dataset of observations
+        Function used to initialise an optimizer with a dataset of observations
         :param x:
         :param y:
         :return:

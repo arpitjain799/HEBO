@@ -7,8 +7,12 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
-import torch
+import copy
+import math
 import warnings
+from typing import Optional, Union
+
+import torch
 
 from comb_opt.acq_funcs import acq_factory
 from comb_opt.acq_optimizers.simulated_annealing_acq_optimizer import SimulatedAnnealingAcqOptimizer
@@ -16,12 +20,17 @@ from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
 from comb_opt.search_space.params.bool_param import BoolPara
+from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
 
 
 class BOCS(BoBase):
     @property
     def name(self) -> str:
-        return 'BOCS'
+        if self.use_tr:
+            name = f'LR ({self.model_estimator}) - Tr-Based LS acq optim'
+        else:
+            name = f'BOCS ({self.model_estimator})'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -35,9 +44,19 @@ class BOCS(BoBase):
                  acq_optim_num_iter: int = 200,
                  acq_optim_init_temp: int = 1,
                  acq_optim_tolerance: int = 100,
+                 use_tr: bool = False,
+                 tr_restart_n_cand: Optional[int] = None,
+                 tr_min_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_max_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_init_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_radius_multiplier: Optional[float] = None,
+                 tr_succ_tol: Optional[int] = None,
+                 tr_fail_tol: Optional[int] = None,
+                 tr_verbose: bool = False,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
+
         assert search_space.num_nominal == search_space.num_params, 'BOCS only supports nominal  variables.'
 
         # Check if the problem is purely binary
@@ -49,11 +68,51 @@ class BOCS(BoBase):
 
         if binary_problem:
             warning_message = 'This is the general form implementation of BOCS (see Appendix A of ' + \
-                              'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' +\
-                              'for purely binary problems. The differences are: (1) binary variables are ' +\
-                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' +\
+                              'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' + \
+                              'for purely binary problems. The differences are: (1) binary variables are ' + \
+                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' + \
                               'in place of SDP.'
             warnings.warn(warning_message, category=UserWarning)
+
+        if use_tr:
+
+            if tr_restart_n_cand is None:
+                tr_restart_n_cand = min(100 * search_space.num_dims, 5000)
+            else:
+                assert isinstance(tr_restart_n_cand, int)
+                assert tr_restart_n_cand > 0
+
+            if search_space.num_nominal > 1:
+                if tr_min_nominal_radius is None:
+                    tr_min_nominal_radius = 1
+                else:
+                    assert 1 <= tr_min_nominal_radius <= search_space.num_nominal
+
+                if tr_max_nominal_radius is None:
+                    tr_max_nominal_radius = search_space.num_nominal
+                else:
+                    assert 1 <= tr_max_nominal_radius <= search_space.num_nominal
+
+                if tr_init_nominal_radius is None:
+                    tr_init_nominal_radius = math.ceil(0.8 * tr_max_nominal_radius)
+                else:
+                    assert tr_min_nominal_radius <= tr_init_nominal_radius <= tr_max_nominal_radius
+
+                assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius
+            else:
+                tr_min_nominal_radius = tr_init_nominal_radius = tr_max_nominal_radius = None
+
+            if tr_radius_multiplier is None:
+                tr_radius_multiplier = 1.5
+
+            if tr_succ_tol is None:
+                tr_succ_tol = 3
+
+            if tr_fail_tol is None:
+                tr_fail_tol = 40
+
+        self.model_estimator = model_estimator
+        self.use_tr = use_tr
 
         model = LinRegModel(search_space=search_space,
                             order=model_order,
@@ -73,6 +132,31 @@ class BOCS(BoBase):
                                                    sa_tolerance=acq_optim_tolerance,
                                                    dtype=dtype)
 
-        tr_manager = None
+        if use_tr:
+
+            # Initialise the trust region manager
+            tr_model = copy.deepcopy(model)
+
+            tr_acq_func = acq_factory('thompson')
+
+            tr_manager = CasmopolitanTrManager(search_space=search_space,
+                                               model=tr_model,
+                                               acq_func=tr_acq_func,
+                                               n_init=n_init,
+                                               min_num_radius=0,  # predefined as not relevant
+                                               max_num_radius=1,  # predefined as not relevant
+                                               init_num_radius=0.8,  # predefined as not relevant
+                                               min_nominal_radius=tr_min_nominal_radius,
+                                               max_nominal_radius=tr_max_nominal_radius,
+                                               init_nominal_radius=tr_init_nominal_radius,
+                                               radius_multiplier=tr_radius_multiplier,
+                                               succ_tol=tr_succ_tol,
+                                               fail_tol=tr_fail_tol,
+                                               restart_n_cand=tr_restart_n_cand,
+                                               verbose=tr_verbose,
+                                               dtype=dtype,
+                                               device=device)
+        else:
+            tr_manager = None
 
         super(BOCS, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)

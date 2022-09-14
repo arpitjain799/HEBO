@@ -18,6 +18,7 @@ from comb_opt.acq_optimizers.acq_optimizer_base import AcqOptimizerBase
 from comb_opt.models import ModelBase
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region import TrManagerBase
+from comb_opt.trust_region.proxy_tr_manager import ProxyTrManager
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.discrete_vars_utils import round_discrete_vars
@@ -25,7 +26,7 @@ from comb_opt.utils.distance_metrics import hamming_distance
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
 
 
-class TrBasedInterleavedSearch(AcqOptimizerBase):
+class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -37,7 +38,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                  nominal_tol: int = 100,
                  dtype: torch.dtype = torch.float32
                  ):
-        super(TrBasedInterleavedSearch, self).__init__(search_space, dtype)
+        super(InterleavedSearchAcqOptimizer, self).__init__(search_space, dtype)
 
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
@@ -49,7 +50,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
         self.n_iter = n_iter
         self.n_restarts = n_restarts
         self.max_n_perturb_num = max_n_perturb_num
-        self.num_optimiser = num_optimizer
+        self.num_optimizer = num_optimizer
         self.nominal_tol = nominal_tol
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
 
@@ -87,7 +88,7 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
 
         # if TR manager is None: we set TR to be the entire space
         if tr_manager is None:
-            tr_manager = TrManagerBase(search_space=self.search_space, dtype=self.search_space.dtype)
+            tr_manager = ProxyTrManager(search_space=self.search_space, dtype=self.search_space.dtype)
             if self.search_space.num_numeric > 0:
                 tr_manager.register_radius('numeric', 0, 1, 1)
             if self.search_space.num_nominal > 1:
@@ -100,7 +101,8 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                                   tr_manager=tr_manager)
         else:
             x_next = torch.zeros((0, self.search_space.num_dims), dtype=self.dtype)
-            model = copy.deepcopy(model)  # create a local copy of the model to be able to retrain it
+            model = copy.deepcopy(
+                model)  # create a local copy of the model to be able to retrain it  # TODO this fails when using the BOiLS model
             x_observed = x_observed.clone()
 
             for i in range(n_suggestions):
@@ -157,12 +159,12 @@ class TrBasedInterleavedSearch(AcqOptimizerBase):
                     # Optimise numeric variables
                     x_numeric.requires_grad_(True)
                     # magnitude of grad descent update in each dimension == learning rate
-                    if self.num_optimiser == 'adam':
+                    if self.num_optimizer == 'adam':
                         optimizer = torch.optim.Adam([{"params": x_numeric}], lr=self.num_lr)
-                    elif self.num_optimiser == 'sgd':
+                    elif self.num_optimizer == 'sgd':
                         optimizer = torch.optim.SGD([{"params": x_numeric}], lr=self.num_lr)
                     else:
-                        raise NotImplementedError(f'optimiser {self.num_optimiser} is not implemented.')
+                        raise NotImplementedError(f'optimizer {self.num_optimizer} is not implemented.')
 
                     optimizer.zero_grad()
                     x_cand = self._reconstruct_x(x_numeric, x_nominal)

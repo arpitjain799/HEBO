@@ -27,9 +27,12 @@ class MigSeqOpt(TaskBase):
                                        'router', 'voter']
 
         assert ntk_name in self.arithmetic_dataset or ntk_name in self.random_control_dataset
-        assert objective in ['size', 'depth'], \
-            'Choose objective=\'size\' for LUT count optimization and objective=\'depth\' for LUT delay optimization.'
+        assert objective in ['size', 'depth', 'both'], \
+            'Choose objective=\'size\' for LUT count optimization and objective=\'depth\'' \
+            ' for LUT delay optimization (or both).'
         self.seq_len = seq_len
+        self.objective = objective
+        self.ntk_name = ntk_name
         self.objective = objective
 
         if ntk_name in self.arithmetic_dataset:
@@ -57,7 +60,7 @@ class MigSeqOpt(TaskBase):
 
     @property
     def name(self) -> str:
-        return 'MIG Sequence Optimisation'
+        return f'MIG Sequence Optimisation - {self.ntk_name} - {self.objective}'
 
     def evaluate(self, x: pd.DataFrame) -> np.ndarray:
         n = len(x)
@@ -78,6 +81,7 @@ class MigSeqOpt(TaskBase):
             file.write(' '.join(str(idx) for idx in x))
 
         try:
+            print(self.path_to_executable, self.path_to_network, path_to_sequence, str(self.seq_len))
             result = subprocess.run(
                 [self.path_to_executable, self.path_to_network, path_to_sequence, str(self.seq_len)], shell=False,
                 capture_output=True, text=True)
@@ -92,6 +96,10 @@ class MigSeqOpt(TaskBase):
             fx = final_size
         elif self.objective == 'depth':
             fx = final_depth
+        elif self.objective == 'both':
+            fx = final_size / init_size + final_depth / init_depth
+        else:
+            raise ValueError("Unsupported objective")
 
         os.remove(path_to_sequence)
         return fx

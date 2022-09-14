@@ -51,7 +51,7 @@ if __name__ == '__main__':
         'BOSS',
         'Casmopolitan',
         'BOiLS',
-        'CoCaBO',
+        'Multi-Armed Bandit',
         'Random Search',
         'Genetic Algorithm',
         'Local Search',

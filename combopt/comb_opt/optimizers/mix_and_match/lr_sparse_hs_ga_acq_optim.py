@@ -7,6 +7,8 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
+from typing import Optional
+
 import torch
 
 from comb_opt.acq_funcs import acq_factory
@@ -32,10 +34,7 @@ class LrSparseHsGaAcqOptim(BoBase):
                  model_n_gibbs: int = int(1e3),
                  acq_optim_ga_num_iter: int = 500,
                  acq_optim_ga_pop_size: int = 100,
-                 acq_optim_ga_num_parents: int = 40,
-                 acq_optim_ga_num_elite: int = 20,
-                 acq_optim_ga_store_x: bool = True,
-                 acq_optim_allow_repeating_x: bool = False,
+                 acq_optim_ga_num_offsprings: Optional[int] = None,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
@@ -57,10 +56,7 @@ class LrSparseHsGaAcqOptim(BoBase):
         acq_optim = GeneticAlgoAcqOptimizer(search_space=search_space,
                                             ga_num_iter=acq_optim_ga_num_iter,
                                             ga_pop_size=acq_optim_ga_pop_size,
-                                            ga_num_parents=acq_optim_ga_num_parents,
-                                            ga_num_elite=acq_optim_ga_num_elite,
-                                            ga_store_x=acq_optim_ga_store_x,
-                                            ga_allow_repeating_x=acq_optim_allow_repeating_x,
+                                            ga_num_offsprings=acq_optim_ga_num_offsprings,
                                             dtype=dtype)
 
         tr_manager = None

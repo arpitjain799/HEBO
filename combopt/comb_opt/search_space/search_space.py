@@ -296,3 +296,40 @@ class SearchSpace(ABC):
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+
+class SearchSpaceSubSet(SearchSpace):
+
+    def __init__(self,
+                 search_space: SearchSpace,
+                 cont_dims: bool = False,
+                 disc_dims: bool = False,
+                 nominal_dims: bool = False,
+                 ordinal_dims: bool = False,
+                 permutation_dims: bool = False,
+                 dtype: torch.dtype=torch.float32):
+
+        params = []
+        for param_name in search_space.param_names:
+
+            append = False
+
+            cont_to_field = {
+                "cont_dims": "is_cont",
+            }
+
+            if cont_dims and search_space.params[param_name].is_cont:
+                append = True
+            if disc_dims and search_space.params[param_name].is_disc:
+                append = True
+            if nominal_dims and search_space.params[param_name].is_nominal:
+                append = True
+            if ordinal_dims and search_space.params[param_name].is_ordinal:
+                append = True
+            if permutation_dims and search_space.params[param_name].is_permutation:
+                append = True
+
+            if append:
+                params.append(search_space.params[param_name].param_dict)
+
+        super(SearchSpaceSubSet, self).__init__(params, dtype)

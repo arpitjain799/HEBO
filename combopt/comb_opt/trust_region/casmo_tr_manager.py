@@ -21,6 +21,7 @@ from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
 from comb_opt.utils.model_utils import move_model_to_device
+from comb_opt.models.gp.combo_gp import ComboGPModel, ComboEnsembleGPModel
 
 
 class CasmopolitanTrManager(TrManagerBase):
@@ -111,24 +112,17 @@ class CasmopolitanTrManager(TrManagerBase):
             if self.verbose:
                 print(f"Shrinking trust region...")
 
-    def suggest_new_tr(self, n_init: int, x_init: pd.DataFrame, observed_data_buffer: DataBuffer,
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
                        best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
 
-        trigger_reset = False
-        for variable_type in self.variable_types:
-            if self.radii[variable_type] < self.min_radii[variable_type]:
-                trigger_reset = True
-                break
-
-        if not trigger_reset:
-            return x_init
-
         if self.verbose:
-            print("Algorithm is stuck in a local optimum. Triggering a guided restart.")
+            print("Algorithm is stuck in a local optimum. Suggesting new tr....")
 
         x_init = pd.DataFrame(index=range(n_init), columns=self.search_space.df_col_names, dtype=float)
 
-        if len(self.data_buffer) > 0:
+        # Note, it's not possible to fit the COMBO GP with a single sample
+        if (len(self.data_buffer) > 0 and not isinstance(self.model, (ComboGPModel, ComboEnsembleGPModel))) or \
+                (len(self.data_buffer) > 1 and isinstance(self.model, (ComboGPModel, ComboEnsembleGPModel))):
 
             tr_x, tr_y = self.data_buffer.x, self.data_buffer.y
 
@@ -182,11 +176,16 @@ class CasmopolitanTrManager(TrManagerBase):
         for i in range(len(observed_data_buffer)):
             x = x_observed[i:i + 1]
 
+            in_tr = True
             # Check the numeric and hamming distance
-            if ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all() \
-                    and hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
-                                         x[:, self.search_space.nominal_dims],
-                                         False).squeeze() <= self.get_nominal_radius():
+            if 'numeric' in self.radii:
+                in_tr = ((tr_centre[self.numeric_dims] - x[0, self.numeric_dims]).abs() < self.radii['numeric']).all()
+            if 'nominal' in self.radii:
+                in_tr = in_tr and (hamming_distance(tr_centre[self.search_space.nominal_dims].unsqueeze(0),
+                                                    x[:, self.search_space.nominal_dims],
+                                                    False).squeeze() <= self.get_nominal_radius()).item()
+
+            if in_tr:
                 self.data_buffer.append(x, y_observed[i:i + 1])
 
         return x_init

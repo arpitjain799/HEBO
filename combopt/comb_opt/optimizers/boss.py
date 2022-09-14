@@ -7,7 +7,9 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
-from typing import Optional
+import copy
+import math
+from typing import Optional, Union
 
 import torch
 from gpytorch.constraints import Interval
@@ -20,13 +22,18 @@ from comb_opt.models import ExactGPModel
 from comb_opt.models.gp.kernels import SubStringKernel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
 
 
 class BOSS(BoBase):
 
     @property
     def name(self) -> str:
-        return 'BOSS'
+        if self.use_tr:
+            name = f'GP (SSK) - Tr-based GA acq optim'
+        else:
+            name = f'BOSS'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -36,7 +43,7 @@ class BOSS(BoBase):
                  model_noise_constr: Optional[Interval] = None,
                  model_noise_lb: float = 1e-5,
                  model_pred_likelihood: bool = True,
-                 model_optimiser: str = 'adam',
+                 model_optimizer: str = 'adam',
                  model_lr: float = 3e-2,
                  model_num_epochs: int = 100,
                  model_max_cholesky_size: int = 2000,
@@ -46,10 +53,17 @@ class BOSS(BoBase):
                  acq_name: str = 'ei',
                  acq_optim_ga_num_iter: int = 500,
                  acq_optim_ga_pop_size: int = 100,
-                 acq_optim_ga_num_parents: int = 40,
-                 acq_optim_ga_num_elite: int = 20,
-                 acq_optim_ga_store_x: bool = True,
-                 acq_optim_allow_repeating_x: bool = False,
+                 acq_optim_ga_num_offsprings: Optional[int] = None,
+                 use_tr: bool = False,
+                 tr_restart_acq_name: str = 'ei',
+                 tr_restart_n_cand: Optional[int] = None,
+                 tr_min_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_max_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_init_nominal_radius: Optional[Union[int, float]] = None,
+                 tr_radius_multiplier: Optional[float] = None,
+                 tr_succ_tol: Optional[int] = None,
+                 tr_fail_tol: Optional[int] = None,
+                 tr_verbose: bool = False,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu'),
                  ):
@@ -62,6 +76,45 @@ class BOSS(BoBase):
         for param in search_space.params:
             assert search_space.params[param].categories == alphabet, \
                 '\'categories\' must be the same for each of the nominal variables.'
+
+        if use_tr:
+
+            if tr_restart_n_cand is None:
+                tr_restart_n_cand = min(100 * search_space.num_dims, 5000)
+            else:
+                assert isinstance(tr_restart_n_cand, int)
+                assert tr_restart_n_cand > 0
+
+            if search_space.num_nominal > 1:
+                if tr_min_nominal_radius is None:
+                    tr_min_nominal_radius = 1
+                else:
+                    assert 1 <= tr_min_nominal_radius <= search_space.num_nominal
+
+                if tr_max_nominal_radius is None:
+                    tr_max_nominal_radius = search_space.num_nominal
+                else:
+                    assert 1 <= tr_max_nominal_radius <= search_space.num_nominal
+
+                if tr_init_nominal_radius is None:
+                    tr_init_nominal_radius = math.ceil(0.8 * tr_max_nominal_radius)
+                else:
+                    assert tr_min_nominal_radius <= tr_init_nominal_radius <= tr_max_nominal_radius
+
+                assert tr_min_nominal_radius < tr_init_nominal_radius <= tr_max_nominal_radius
+            else:
+                tr_min_nominal_radius = tr_init_nominal_radius = tr_max_nominal_radius = None
+
+            if tr_radius_multiplier is None:
+                tr_radius_multiplier = 1.5
+
+            if tr_succ_tol is None:
+                tr_succ_tol = 3
+
+            if tr_fail_tol is None:
+                tr_fail_tol = 40
+
+        self.use_tr = use_tr
 
         alphabet_size = len(alphabet)
 
@@ -80,7 +133,7 @@ class BOSS(BoBase):
                              pred_likelihood=model_pred_likelihood,
                              lr=model_lr,
                              num_epochs=model_num_epochs,
-                             optimizer=model_optimiser,
+                             optimizer=model_optimizer,
                              max_cholesky_size=model_max_cholesky_size,
                              max_training_dataset_size=model_max_training_dataset_size,
                              max_batch_size=model_max_batch_size,
@@ -94,12 +147,34 @@ class BOSS(BoBase):
         acq_optim = GeneticAlgoAcqOptimizer(search_space=search_space,
                                             ga_num_iter=acq_optim_ga_num_iter,
                                             ga_pop_size=acq_optim_ga_pop_size,
-                                            ga_num_parents=acq_optim_ga_num_parents,
-                                            ga_num_elite=acq_optim_ga_num_elite,
-                                            ga_store_x=acq_optim_ga_store_x,
-                                            ga_allow_repeating_x=acq_optim_allow_repeating_x,
+                                            ga_num_offsprings=acq_optim_ga_num_offsprings,
                                             dtype=dtype)
 
-        tr_manager = None
+        if use_tr:
+
+            # Initialise the trust region manager
+            tr_model = copy.deepcopy(model)
+
+            tr_acq_func = acq_factory(tr_restart_acq_name)
+
+            tr_manager = CasmopolitanTrManager(search_space=search_space,
+                                               model=tr_model,
+                                               acq_func=tr_acq_func,
+                                               n_init=n_init,
+                                               min_num_radius=0,  # predefined as not relevant
+                                               max_num_radius=1,  # predefined as not relevant
+                                               init_num_radius=0.8,  # predefined as not relevant
+                                               min_nominal_radius=tr_min_nominal_radius,
+                                               max_nominal_radius=tr_max_nominal_radius,
+                                               init_nominal_radius=tr_init_nominal_radius,
+                                               radius_multiplier=tr_radius_multiplier,
+                                               succ_tol=tr_succ_tol,
+                                               fail_tol=tr_fail_tol,
+                                               restart_n_cand=tr_restart_n_cand,
+                                               verbose=tr_verbose,
+                                               dtype=dtype,
+                                               device=device)
+        else:
+            tr_manager = None
 
         super(BOSS, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)

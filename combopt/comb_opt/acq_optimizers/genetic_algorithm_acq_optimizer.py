@@ -9,14 +9,17 @@
 
 from typing import Optional
 
+import pandas as pd
 import torch
 
 from comb_opt.acq_funcs import AcqBase
 from comb_opt.acq_optimizers import AcqOptimizerBase
 from comb_opt.models import ModelBase
-from comb_opt.optimizers.genetic_algorithm import GeneticAlgorithm
+from comb_opt.optimizers.genetic_algorithm import PymooGeneticAlgorithm
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region.tr_manager_base import TrManagerBase
+from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
+from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 
 
 class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
@@ -25,10 +28,7 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                  search_space: SearchSpace,
                  ga_num_iter: int = 500,
                  ga_pop_size: int = 100,
-                 ga_num_parents: int = 20,
-                 ga_num_elite: int = 10,
-                 ga_store_x: bool = False,
-                 ga_allow_repeating_x: bool = True,
+                 ga_num_offsprings: Optional[int] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
 
@@ -36,13 +36,19 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
 
         self.ga_num_iter = ga_num_iter
         self.ga_pop_size = ga_pop_size
-        self.ga_num_parents = ga_num_parents
-        self.ga_num_elite = ga_num_elite
-        self.ga_store_x = ga_store_x
-        self.ga_allow_repeating_x = ga_allow_repeating_x
+        self.ga_num_offsprings = ga_num_offsprings
 
-        assert self.search_space.num_nominal + self.search_space.num_ordinal == self.search_space.num_dims, \
-            'Genetic Algorithm currently supports only nominal and ordinal variables'
+        self.is_numeric = True if self.search_space.num_cont > 0 or self.search_space.num_disc > 0 else False
+        self.is_nominal = True if self.search_space.num_nominal > 0 else False
+        self.is_mixed = self.is_nominal and self.is_numeric
+
+        self.nominal_dims = self.search_space.nominal_dims
+        self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
+        # Dimensions of discrete variables in tensors containing only numeric variables
+        self.disc_dims_in_numeric = [i + len(self.search_space.cont_dims) for i in
+                                     range(len(self.search_space.disc_dims))]
+
+        self.discrete_choices = get_discrete_choices(search_space)
 
     def optimize(self, x: torch.Tensor,
                  n_suggestions: int,
@@ -50,22 +56,40 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                  model: ModelBase,
                  acq_func: AcqBase,
                  acq_evaluate_kwargs: dict,
-                 tr_manager: Optional[TrManagerBase],
+                 tr_manager: Optional[TrManagerBase] = None,
                  **kwargs
                  ) -> torch.Tensor:
 
         assert n_suggestions == 1, 'Genetic Algorithm acquisition optimizer does not support suggesting batches of data'
 
-        ga = GeneticAlgorithm(self.search_space,
-                              self.ga_pop_size,
-                              self.ga_num_parents,
-                              self.ga_num_elite,
-                              self.ga_store_x,
-                              self.ga_allow_repeating_x,
-                              tr_manager=tr_manager,
-                              dtype=self.dtype)
+        ga = PymooGeneticAlgorithm(search_space=self.search_space,
+                                   pop_size=self.ga_pop_size,
+                                   n_offsprings=self.ga_num_offsprings,
+                                   fixed_tr_manager=tr_manager,
+                                   store_all=True,
+                                   dtype=self.dtype)
 
-        ga.x_queue.iloc[0:1] = self.search_space.inverse_transform(x.unsqueeze(0))
+        x_init = pd.DataFrame(index=range(self.ga_pop_size), columns=self.search_space.df_col_names, dtype=float)
+
+        if tr_manager is None:
+            x_init.iloc[0:1] = self.search_space.inverse_transform(x.unsqueeze(0))
+            x_init.iloc[1:self.ga_pop_size] = self.search_space.sample(self.ga_pop_size - 1)
+        else:
+            x_init.iloc[0:1] = self.search_space.inverse_transform(tr_manager.center.unsqueeze(0))
+            # Sample the remaining points
+            x_init.iloc[1:self.ga_pop_size] = self.search_space.inverse_transform(
+                sample_numeric_and_nominal_within_tr(x_centre=tr_manager.center,
+                                                     search_space=self.search_space,
+                                                     tr_manager=tr_manager,
+                                                     n_points=self.ga_pop_size - 1,
+                                                     is_numeric=self.is_numeric,
+                                                     is_mixed=self.is_mixed,
+                                                     numeric_dims=self.numeric_dims,
+                                                     discrete_choices=self.discrete_choices,
+                                                     model=None,
+                                                     return_numeric_bounds=False))
+
+        ga.set_x_init(x_init)
 
         with torch.no_grad():
             for _ in range(int(round(self.ga_num_iter / self.ga_pop_size))):
@@ -74,26 +98,28 @@ class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
                                   **acq_evaluate_kwargs).view(-1, 1).detach().cpu()
                 ga.observe(x_next, y_next)
 
-        # Check if any of the elite samples was previous unobserved
         valid = False
-        for x in ga.x_elite:
-            if torch.logical_not((x.unsqueeze(0) == x_observed).all(axis=1)).all():
+        # Iterate through all observed samples from the GA and return the one with the best black-box value
+        for idx in torch.argsort(ga.data_buffer.y.flatten()):
+            best_x = ga.data_buffer.x[idx].unsqueeze(0)
+            if torch.logical_not((best_x == x_observed).all(axis=1)).all():
                 valid = True
                 break
 
-        # If possible, check if any of the samples suggested by GA were unobserved
-        if not valid and len(ga.data_buffer) > 0:
-            ga_x, ga_y = ga.data_buffer.x, ga.data_buffer.y
-            for idx in ga_y.flatten().argsort():
-                x = ga_x[idx]
-                if torch.logical_not((x.unsqueeze(0) == x_observed).all(axis=1)).all():
-                    valid = True
-                    break
-
-        # If a valid sample was still not found, suggest a random sample
+        # If a valid sample was not found, suggest a random sample
         if not valid:
-            x = self.search_space.transform(self.search_space.sample(1))
-        else:
-            x = x.unsqueeze(0)
+            if tr_manager is None:
+                best_x = self.search_space.transform(self.search_space.sample(1))
+            else:
+                best_x = sample_numeric_and_nominal_within_tr(x_centre=tr_manager.center,
+                                                              search_space=self.search_space,
+                                                              tr_manager=tr_manager,
+                                                              n_points=1,
+                                                              is_numeric=self.is_numeric,
+                                                              is_mixed=self.is_mixed,
+                                                              numeric_dims=self.numeric_dims,
+                                                              discrete_choices=self.discrete_choices,
+                                                              model=None,
+                                                              return_numeric_bounds=False)
 
-        return x
+        return best_x

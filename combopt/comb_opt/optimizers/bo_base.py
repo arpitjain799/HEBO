@@ -51,11 +51,11 @@ class BoBase(OptimizerBase, ABC):
         self.device = device
 
         self._init_model = copy.deepcopy(model)
-        self._init_acq_optimiser = copy.deepcopy(acq_optim)
+        self._init_acq_optimizer = copy.deepcopy(acq_optim)
 
         self.model = model
         self.acq_func = acq_func
-        self.acq_optimiser = acq_optim
+        self.acq_optimizer = acq_optim
         self.tr_manager = tr_manager
 
         self.n_init = n_init
@@ -65,7 +65,7 @@ class BoBase(OptimizerBase, ABC):
         self._restart()
         self.x_init = self.search_space.sample(self.n_init)
         self.model = copy.deepcopy(self._init_model)
-        self.acq_optimiser = copy.deepcopy(self._init_acq_optimiser)
+        self.acq_optimizer = copy.deepcopy(self._init_acq_optimizer)
         if self.tr_manager is not None:
             self.tr_manager.restart()
 
@@ -103,10 +103,16 @@ class BoBase(OptimizerBase, ABC):
     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
         if self.tr_manager is not None:
-            self.x_init = self.tr_manager.suggest_new_tr(self.n_init,
-                                                         self.x_init,
-                                                         self.data_buffer,
-                                                         self.data_buffer.y_min)
+            trigger_tr_reset = False
+            for variable_type in self.tr_manager.variable_types:
+                if self.tr_manager.radii[variable_type] < self.tr_manager.min_radii[variable_type]:
+                    trigger_tr_reset = True
+                    break
+
+            if trigger_tr_reset:
+                self.x_init = self.tr_manager.suggest_new_tr(self.n_init,
+                                                             self.data_buffer,
+                                                             self.data_buffer.y_min)
 
         # Create a Dataframe that will store the candidates
         idx = 0
@@ -151,7 +157,7 @@ class BoBase(OptimizerBase, ABC):
             torch.cuda.empty_cache()  # Clear cached memory
 
             # Optimise the acquisition function
-            x_remaining = self.acq_optimiser.optimize(best_x, n_remaining, self.data_buffer.x, self.model,
+            x_remaining = self.acq_optimizer.optimize(best_x, n_remaining, self.data_buffer.x, self.model,
                                                       self.acq_func, acq_evaluate_kwargs=acq_evaluate_kwargs,
                                                       tr_manager=self.tr_manager)
 
@@ -192,8 +198,8 @@ class BoBase(OptimizerBase, ABC):
                 self.best_y = y_
                 self._best_x = x[idx: idx + 1]
 
-        # Used to update internal state of the optimiser if needed
-        self.acq_optimiser.post_observe_method(x, y, self.data_buffer, self.n_init)
+        # Used to update internal state of the optimizer if needed
+        self.acq_optimizer.post_observe_method(x, y, self.data_buffer, self.n_init)
 
     def get_best_x_and_y(self):
         """
@@ -213,7 +219,7 @@ class BoBase(OptimizerBase, ABC):
 
     @property
     def is_numeric(self) -> bool:
-        return True if self.search_space.num_cont > 0 or self.search_space.num_disc > 0 else False
+        return True if (self.search_space.num_cont > 0 or self.search_space.num_disc > 0) else False
 
     @property
     def is_nominal(self) -> bool:

@@ -7,7 +7,7 @@ import torch
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
 
 from comb_opt.factory import task_factory
-from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, GeneticAlgorithm, BOCS, BOSS, COMBO, \
+from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, PymooGeneticAlgorithm, BOCS, BOSS, COMBO, \
     CoCaBO, Casmopolitan, BOiLS
 from comb_opt.utils.experiment_utils import run_experiment
 

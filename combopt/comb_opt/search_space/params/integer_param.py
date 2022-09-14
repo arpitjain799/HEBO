@@ -6,6 +6,7 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
+import math
 
 import numpy as np
 import torch
@@ -16,8 +17,8 @@ from comb_opt.search_space.params.param import Parameter
 class IntegerPara(Parameter):
     def __init__(self, param_dict: dict, dtype: torch.dtype):
         super().__init__(param_dict, dtype)
-        self.lb = round(param_dict.get('lb'))
-        self.ub = round(param_dict.get('ub'))
+        self.lb = math.ceil(param_dict.get('lb'))
+        self.ub = int(param_dict.get('ub'))
 
     def sample(self, num=1):
         assert (num > 0)

@@ -10,7 +10,7 @@
 import torch
 
 from comb_opt.acq_funcs import acq_factory
-from comb_opt.acq_optimizers.exhaustive_local_search_acq_optimizer import ExhaustiveLsAcqOptimizer
+from comb_opt.acq_optimizers.local_search_acq_optimizer import LsAcqOptimizer
 from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
@@ -57,14 +57,14 @@ class LrSparseHsExhaustiveLsAcqOptim(BoBase):
 
         acq_func = acq_factory('thompson')
 
-        acq_optim = ExhaustiveLsAcqOptimizer(search_space=search_space,
-                                             adjacency_mat_list=adjacency_mat_list,
-                                             n_vertices=n_vertices,
-                                             n_random_vertices=acq_optim_n_random_vertices,
-                                             n_greedy_ascent_init=acq_optim_n_greedy_ascent_init,
-                                             n_spray=acq_optim_n_spray,
-                                             max_n_ascent=acq_optim_max_n_ascent,
-                                             dtype=dtype)
+        acq_optim = LsAcqOptimizer(search_space=search_space,
+                                   adjacency_mat_list=adjacency_mat_list,
+                                   n_vertices=n_vertices,
+                                   n_random_vertices=acq_optim_n_random_vertices,
+                                   n_greedy_ascent_init=acq_optim_n_greedy_ascent_init,
+                                   n_spray=acq_optim_n_spray,
+                                   max_n_ascent=acq_optim_max_n_ascent,
+                                   dtype=dtype)
 
         tr_manager = None
 
