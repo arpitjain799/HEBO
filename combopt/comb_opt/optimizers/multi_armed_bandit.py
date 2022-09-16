@@ -7,6 +7,7 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 import warnings
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -14,7 +15,10 @@ import torch
 
 from comb_opt.optimizers.optimizer_base import OptimizerBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.trust_region.tr_manager_base import TrManagerBase
+from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.dependant_rounding import DepRound
+from comb_opt.utils.distance_metrics import hamming_distance
 
 
 class MultiArmedBandit(OptimizerBase):
@@ -29,6 +33,7 @@ class MultiArmedBandit(OptimizerBase):
                  max_n_iter: int = 200,
                  noisy_black_box: bool = False,
                  resample_tol: int = 500,
+                 fixed_tr_manager: Optional[TrManagerBase] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
 
@@ -54,6 +59,12 @@ class MultiArmedBandit(OptimizerBase):
         self.log_weights = [np.zeros(C) for C in self.n_cats]
         self.prob_dist = None
 
+        if fixed_tr_manager is not None:
+            assert 'nominal' in fixed_tr_manager.radii, 'Trust Region manager must contain a radius for nominal variables'
+            assert fixed_tr_manager.center is not None, 'Trust Region does not have a centre. Call tr_manager.set_center(center) to set one.'
+        self.tr_manager = fixed_tr_manager
+        self.tr_center = None if fixed_tr_manager is None else fixed_tr_manager.center.unsqueeze(0)
+
         super(MultiArmedBandit, self).__init__(search_space, dtype)
 
     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
@@ -73,24 +84,63 @@ class MultiArmedBandit(OptimizerBase):
             # ht_batch_list size: len(self.C_list) x B
             x_next[:, j] = torch.tensor(ht[:], dtype=self.dtype)
 
+        # Project back all point to the trust region centre
+        if self.tr_manager is not None:
+            hamming_distances = hamming_distance(x_next, self.tr_center, normalize=False)
+
+            for sample_idx, distance in enumerate(hamming_distances):
+                if distance > self.tr_manager.get_nominal_radius():
+                    # Project x back to the trust region
+                    mask = x_next[sample_idx] != self.tr_center[0]
+                    indices = np.random.choice([i for i, x in enumerate(mask) if x],
+                                               size=distance.item() - self.tr_manager.get_nominal_radius(),
+                                               replace=False)
+                    x_next[sample_idx][indices] = self.tr_center[0][indices]
+
         # Eliminate all duplicates in the current batch
-        if n_suggestions > 1:
-            for idx in range(n_suggestions):
-                tol = 0
-                seen = self.was_sample_seen(x_next, idx)
+        for sample_idx in range(n_suggestions):
+            tol = 0
+            seen = self.was_sample_seen(x_next, sample_idx)
 
-                while seen:
-                    # Resample
-                    for j, num_cat in enumerate(self.n_cats):
-                        ht = np.random.choice(num_cat, 1, p=self.prob_dist[j])
-                        x_next[idx, j] = torch.tensor(ht[:], dtype=self.dtype)
+            while seen:
+                # Resample
+                for j, num_cat in enumerate(self.n_cats):
+                    ht = np.random.choice(num_cat, 1, p=self.prob_dist[j])
+                    x_next[sample_idx, j] = torch.tensor(ht[:], dtype=self.dtype)
 
-                    seen = self.was_sample_seen(x_next, idx)
-                    tol += 1
-                    if tol > self.resample_tol:
-                        warnings.warn(
-                            f'Failed to sample a previously unseen sample within {self.resample_tol} attempts. Consider increasing the \'resample_tol\' parameter. Generating a random sample...')
-                        x_next[idx] = self.search_space.transform(self.search_space.sample(1))[0]
+                # Project back all point to the trust region centre
+                if self.tr_manager is not None:
+                    dist = hamming_distance(x_next[sample_idx:sample_idx + 1], self.tr_center, normalize=False)
+                    if dist.item() > self.tr_manager.get_nominal_radius():
+                        # Project x back to the trust region
+                        mask = x_next[sample_idx] != self.tr_center[0]
+                        indices = np.random.choice([i for i, x in enumerate(mask) if x],
+                                                   size=dist.item() - self.tr_manager.get_nominal_radius(),
+                                                   replace=False)
+                        x_next[sample_idx][indices] = self.tr_center[0][indices]
+
+                seen = self.was_sample_seen(x_next, sample_idx)
+                tol += 1
+
+                if tol > self.resample_tol:
+                    warnings.warn(
+                        f'Failed to sample a previously unseen sample within {self.resample_tol} attempts. Consider increasing the \'resample_tol\' parameter. Generating a random sample...')
+                    if self.tr_manager is not None:
+                        x_next[sample_idx] = sample_numeric_and_nominal_within_tr(x_centre=self.tr_center,
+                                                                                  search_space=self.search_space,
+                                                                                  tr_manager=self.tr_manager,
+                                                                                  n_points=1,
+                                                                                  is_numeric=False,
+                                                                                  is_mixed=False,
+                                                                                  numeric_dims=[],
+                                                                                  discrete_choices=[],
+                                                                                  max_n_perturb_num=0,
+                                                                                  model=None,
+                                                                                  return_numeric_bounds=False)[0]
+                    else:
+                        x_next[sample_idx] = self.search_space.transform(self.search_space.sample(1))[0]
+
+                    seen = False  # Needed to prevent infinite loop
 
         return self.search_space.inverse_transform(x_next)
 
@@ -98,10 +148,11 @@ class MultiArmedBandit(OptimizerBase):
 
         seen = False
 
-        # Check if current sample is already in the batch
-        if (x_next[sample_idx:sample_idx + 1] == torch.cat((x_next[:sample_idx], x_next[sample_idx + 1:]))).all(
-                dim=1).any():
-            seen = True
+        if len(x_next) > 1:
+            # Check if current sample is already in the batch
+            if (x_next[sample_idx:sample_idx + 1] == torch.cat((x_next[:sample_idx], x_next[sample_idx + 1:]))).all(
+                    dim=1).any():
+                seen = True
 
         # If the black-box is not noisy, check if the current sample was previously observed
         if (not seen) and (not self.noisy_black_box) and (x_next[sample_idx:sample_idx + 1] == self.data_buffer.x).all(

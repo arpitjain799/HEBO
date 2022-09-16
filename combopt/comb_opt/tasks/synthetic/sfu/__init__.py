@@ -22,7 +22,7 @@ from comb_opt.tasks.synthetic.sfu.sum_squares import SumSquares
 from comb_opt.tasks.synthetic.sfu.trid import Trid
 from comb_opt.tasks.synthetic.sfu.power_sum import PowSum
 from comb_opt.tasks.synthetic.sfu.zakharov import Zakharov
-from comb_opt.tasks.synthetic.sfu.dixon_prince import DixonPrince
+from comb_opt.tasks.synthetic.sfu.dixon_price import DixonPrice
 from comb_opt.tasks.synthetic.sfu.rosenbrock import Rosenbrock
 from comb_opt.tasks.synthetic.sfu.michalewicz import Michalewicz
 from comb_opt.tasks.synthetic.sfu.perm import Perm
@@ -49,7 +49,7 @@ BOWL_SHAPED = {'perm0': Perm0,
 PLATE_SHAPED = {'power_sum': PowSum,
                 'zakharov': Zakharov}
 
-VALLEY_SHAPED = {'dixon_prince': DixonPrince,
+VALLEY_SHAPED = {'dixon_price': DixonPrice,
                  'rosenbrock': Rosenbrock}
 
 STEEP_RIDGES = {'michalewicz': Michalewicz}

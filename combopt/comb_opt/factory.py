@@ -23,8 +23,7 @@ SFU_SYNTHETIC_FUNC_NAMES = list(SFU_FUNCTIONS.keys())
 
 def _sfu_search_space_params_factory(variable_type: Union[str, List[str]], num_dims: Union[int, List[int]],
                                      lb: Union[int, float], ub: Union[int, float],
-                                     num_categories: Optional[Union[int, List[int]]] = None,
-                                     **kwargs) \
+                                     num_categories: Optional[Union[int, List[int]]] = None) \
         -> List[Union[Dict[str, Union[Union[str, float, int], Any]], Dict[str, Union[Union[str, object], Any]], Dict[
             str, Union[str, float, int]], Dict[str, Union[str, object]]]]:
     # Basic checks to ensure all arguments are correct
@@ -174,7 +173,8 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         else:
             raise Exception('Expect num_dims to be either an integer or a list of integers')
 
-        task_params = default_sfu_params_factory(task_name, num_dims)
+        task_params = default_sfu_params_factory(task_name, num_dims,
+                                                 task_name_suffix=kwargs.get("task_name_suffix", None))
 
         if 'lb' in kwargs:
             task_params['lb'] = kwargs.get('lb')

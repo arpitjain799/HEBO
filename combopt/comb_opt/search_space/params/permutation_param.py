@@ -31,7 +31,7 @@ class PermutationPara(Parameter):
     def transform(self, x: np.ndarray):
         return torch.tensor(x, dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         x = x.cpu().numpy()
         return x
 

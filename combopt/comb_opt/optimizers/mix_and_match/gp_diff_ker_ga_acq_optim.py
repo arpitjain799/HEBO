@@ -44,7 +44,10 @@ class GpDiffusionGaAcqOptim(BoBase):
                  acq_name: str = 'ei',
                  acq_optim_ga_num_iter: int = 500,
                  acq_optim_ga_pop_size: int = 100,
-                 acq_optim_ga_num_offsprings: Optional[int] = None,
+                 acq_optim_ga_num_parents: int = 20,
+                 acq_optim_ga_num_elite: int = 10,
+                 acq_optim_ga_store_x: bool = False,
+                 acq_optim_ga_allow_repeating_x: bool = True,
                  use_tr: bool = True,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
@@ -123,10 +126,14 @@ class GpDiffusionGaAcqOptim(BoBase):
         # Initialise the acquisition function
         acq_func = SingleObjAcqExpectation(acq_factory(acq_func_name=acq_name))
 
+        # Initialise the acquisition optimizer
         acq_optim = GeneticAlgoAcqOptimizer(search_space=search_space,
                                             ga_num_iter=acq_optim_ga_num_iter,
                                             ga_pop_size=acq_optim_ga_pop_size,
-                                            ga_num_offsprings=acq_optim_ga_num_offsprings,
+                                            cat_ga_num_parents=acq_optim_ga_num_parents,
+                                            cat_ga_num_elite=acq_optim_ga_num_elite,
+                                            cat_ga_store_x=acq_optim_ga_store_x,
+                                            cat_ga_allow_repeating_x=acq_optim_ga_allow_repeating_x,
                                             dtype=dtype)
 
         if use_tr:

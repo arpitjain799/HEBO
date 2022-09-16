@@ -7,8 +7,7 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
@@ -25,8 +24,8 @@ class TaskBase(ABC):
     @abstractmethod
     def name(self) -> str:
         """
-        Remember to include the @property decorator to this function
-        :return:
+        Return:
+            A string correponding to the name of the task
         """
         return 'Task Name'
 
@@ -35,7 +34,7 @@ class TaskBase(ABC):
         """
         Function to compute the problem specific black-box function.
 
-        :param x: 2D numpy array containing the solutions at which the black-box should be evaluated.
+        :param x: dataframe containing the points at which the black-box should be evaluated.
         Shape: (batch_size, num_dims), where num_dims is the dimensionality of the problem and batch_size is the batch
         size. dtype: float32.
         :return: 2D numpy array containing evaluated black-box values at the input x. Shape: (batch_size, 1).

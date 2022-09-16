@@ -6,11 +6,12 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
+from typing import Optional
 
 import numpy as np
 
 
-def default_sfu_params_factory(task_name: str, num_dims: int):
+def default_sfu_params_factory(task_name: str, num_dims: int, task_name_suffix: Optional[str] = None):
     assert isinstance(task_name, str)
     assert isinstance(num_dims, int)
 
@@ -114,7 +115,7 @@ def default_sfu_params_factory(task_name: str, num_dims: int):
                   'ub': 10
                   }
 
-    elif task_name == 'dixon_prince':
+    elif task_name == 'dixon_price':
         params = {'num_dims': num_dims,
                   'lb': -10,
                   'ub': 10
@@ -151,5 +152,5 @@ def default_sfu_params_factory(task_name: str, num_dims: int):
 
     else:
         raise NotImplemented(f'Task {task_name} is not implemented')
-
+    params["task_name_suffix"] = task_name_suffix
     return params

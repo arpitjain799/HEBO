@@ -37,7 +37,7 @@ class OrdinalPara(Parameter):
             ret = np.array(list(map(lambda a: np.where(self.categories == a)[0][0], x)))
         return torch.tensor(ret, dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         x = x.cpu().numpy()
         return np.array([self.categories[x_] for x_ in x.round().astype(int)])
 

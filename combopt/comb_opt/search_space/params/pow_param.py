@@ -25,7 +25,7 @@ class PowPara(Parameter):
         assert (num > 0)
         return self.base ** np.random.uniform(self.lb, self.ub, num)
 
-    def transform(self, x):
+    def transform(self, x) -> torch.Tensor:
         log_x = np.log(x) / np.log(self.base)
 
         # Normalise
@@ -33,7 +33,7 @@ class PowPara(Parameter):
 
         return torch.tensor(normalised_log_x, dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         x = x.cpu().numpy()
         # Un-normalise
         log_x = (self.ub - self.lb) * x + self.lb

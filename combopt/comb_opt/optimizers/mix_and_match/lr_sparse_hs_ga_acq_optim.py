@@ -34,7 +34,10 @@ class LrSparseHsGaAcqOptim(BoBase):
                  model_n_gibbs: int = int(1e3),
                  acq_optim_ga_num_iter: int = 500,
                  acq_optim_ga_pop_size: int = 100,
-                 acq_optim_ga_num_offsprings: Optional[int] = None,
+                 acq_optim_ga_num_parents: int = 20,
+                 acq_optim_ga_num_elite: int = 10,
+                 acq_optim_ga_store_x: bool = False,
+                 acq_optim_ga_allow_repeating_x: bool = True,
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
@@ -53,10 +56,14 @@ class LrSparseHsGaAcqOptim(BoBase):
 
         acq_func = acq_factory('thompson')
 
+        # Initialise the acquisition optimizer
         acq_optim = GeneticAlgoAcqOptimizer(search_space=search_space,
                                             ga_num_iter=acq_optim_ga_num_iter,
                                             ga_pop_size=acq_optim_ga_pop_size,
-                                            ga_num_offsprings=acq_optim_ga_num_offsprings,
+                                            cat_ga_num_parents=acq_optim_ga_num_parents,
+                                            cat_ga_num_elite=acq_optim_ga_num_elite,
+                                            cat_ga_store_x=acq_optim_ga_store_x,
+                                            cat_ga_allow_repeating_x=acq_optim_ga_allow_repeating_x,
                                             dtype=dtype)
 
         tr_manager = None

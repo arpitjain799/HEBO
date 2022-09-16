@@ -100,7 +100,7 @@ if __name__ == '__main__':
 - Create a folder containing the code of the new task in the [tasks folder](./comb_opt/tasks).
 - The folder can also contain a README providing a description of the task, associated search_space, dependencies 
 - Add the new task to the [factory script](./comb_opt/factory.py) (prefer local import of the new task class if it
-depends on packages not listed in [requirements.txt](./requirements.txt).
+depends on packages not listed in [requirements.txt](./requirements.txt)).
 - Add reference to the task in the present README.md in the dedicated section.
 
 ### Adding an optimizer

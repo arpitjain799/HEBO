@@ -26,7 +26,7 @@ class BoolPara(Parameter):
     def transform(self, x):
         return torch.tensor(x.astype(bool), dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         if isinstance(x, torch.Tensor):
             x = x.cpu().numpy()
         return x > 0.5

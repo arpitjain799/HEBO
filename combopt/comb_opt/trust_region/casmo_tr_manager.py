@@ -14,6 +14,7 @@ import torch
 
 from comb_opt.acq_funcs import AcqBase
 from comb_opt.models import ModelBase
+from comb_opt.models.gp.combo_gp import ComboGPModel, ComboEnsembleGPModel
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
@@ -21,7 +22,6 @@ from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
 from comb_opt.utils.model_utils import move_model_to_device
-from comb_opt.models.gp.combo_gp import ComboGPModel, ComboEnsembleGPModel
 
 
 class CasmopolitanTrManager(TrManagerBase):
@@ -48,10 +48,12 @@ class CasmopolitanTrManager(TrManagerBase):
                  ):
         super(CasmopolitanTrManager, self).__init__(search_space, dtype)
 
-        assert self.search_space.num_cont + self.search_space.num_disc + self.search_space.num_nominal \
-               == self.search_space.num_dims, \
-            'The Casmopolitan Trust region manager only supports continuous, ' \
-            'discrete and nominal variables'
+        if not self.search_space.num_cont + self.search_space.num_disc + self.search_space.num_nominal \
+               == self.search_space.num_dims:
+            raise NotImplementedError(
+                'The Casmopolitan Trust region manager only supports continuous, discrete and nominal variables. ' \
+                'If you wish to use the Casmopolitan Trust region manager with ordinal variables,'
+                ' model them as nominal variables')
 
         self.is_numeric = search_space.num_numeric > 0
         self.is_mixed = self.is_numeric and search_space.num_nominal > 0

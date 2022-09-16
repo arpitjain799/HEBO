@@ -25,25 +25,39 @@ from pathlib import Path
 ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
 sys.path[0] = ROOT_PROJECT
 
-import torch
-
 from comb_opt.factory import task_factory
-from comb_opt.optimizers.cocabo import CoCaBO
-from comb_opt.utils.plotting_utils import plot_convergence_curve
+from comb_opt.optimizers.multi_armed_bandit import MultiArmedBandit
+from comb_opt.trust_region.random_restart_tr_manager import RandomRestartTrManager
+from comb_opt.utils.distance_metrics import hamming_distance
 
 if __name__ == '__main__':
-    n = 100
+    task, search_space = task_factory('ackley', num_dims=[2, 1, 2, 1],
+                                      variable_type=['nominal', 'nominal', 'nominal', 'nominal'],
+                                      num_categories=[3, 3, 4, 5])
 
-    task, search_space = task_factory('ackley', num_dims=[2, 2, 2, 2, 2],
-                                      variable_type=['nominal', 'num', 'ordinal', 'int', 'nominal'],
-                                      num_categories=[3, None, 3, None, 4])
+    tr_manager = RandomRestartTrManager(search_space,
+                                        min_num_radius=2 ** -5,
+                                        max_num_radius=1.,
+                                        init_num_radius=0.8,
+                                        min_nominal_radius=1,
+                                        max_nominal_radius=10,
+                                        init_nominal_radius=8,
+                                        fail_tol=5,
+                                        succ_tol=2,
+                                        verbose=True)
+    center = search_space.transform(search_space.sample(1))[0]
+    tr_manager.set_center(center)
+    tr_manager.radii['nominal'] = 4
 
-    optimizer = CoCaBO(search_space, n_init=2, device=torch.device('cpu'))
+    optimizer = MultiArmedBandit(search_space, fixed_tr_manager=tr_manager)
+
+    n = 200
+
     for i in range(n):
-        x_next = optimizer.suggest(1)
+        x_next = optimizer.suggest(5)
+
+        dist = hamming_distance(search_space.transform(x_next), center.unsqueeze(0), normalize=False)
+        print(f'All suggestions are within the trust region: {(dist <= tr_manager.get_nominal_radius()).all().item()}')
         y_next = task(x_next)
         optimizer.observe(x_next, y_next)
         print(f"Iteration {i + 1:03d}/{n} Current value: {y_next[0, 0]:.2f} - best value: {optimizer.best_y:.2f}")
-
-    plot_convergence_curve(optimizer, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
-                                                         f'{optimizer.name}_test.png'), plot_per_iter=True)

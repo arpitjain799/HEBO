@@ -25,18 +25,26 @@ from pathlib import Path
 ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
 sys.path[0] = ROOT_PROJECT
 
+import torch
+
 from comb_opt.factory import task_factory
-from comb_opt.optimizers.multi_armed_bandit import MultiArmedBandit
+from comb_opt.optimizers.cocabo import CoCaBO
+from comb_opt.utils.plotting_utils import plot_convergence_curve
 
 if __name__ == '__main__':
-    task, search_space = task_factory('ackley', num_dims=[2, 1, 2, 1],
-                                      variable_type=['nominal', 'ordinal', 'nominal', 'ordinal'], num_categories=[3, 3, 4, 5])
-    optimizer = MultiArmedBandit(search_space)
+    n = 100
 
-    n = 200
+    task_name_suffix = "2-nom-3 2-num 2-ord-3 2-int 2-nom-4"
+    task, search_space = task_factory('ackley', num_dims=[2, 2, 2, 2, 2],
+                                      variable_type=['nominal', 'num', 'ordinal', 'int', 'nominal'],
+                                      num_categories=[3, None, 3, None, 4])
 
+    optimizer = CoCaBO(search_space, n_init=2, device=torch.device('cpu'))
     for i in range(n):
         x_next = optimizer.suggest(1)
         y_next = task(x_next)
         optimizer.observe(x_next, y_next)
         print(f"Iteration {i + 1:03d}/{n} Current value: {y_next[0, 0]:.2f} - best value: {optimizer.best_y:.2f}")
+
+    plot_convergence_curve(optimizer, task, os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
+                                                         f'{optimizer.name}_test.png'), plot_per_iter=True)

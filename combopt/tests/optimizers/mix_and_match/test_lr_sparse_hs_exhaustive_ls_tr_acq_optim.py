@@ -11,10 +11,10 @@ import os
 import sys
 from pathlib import Path
 
-ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent.parent)
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent.parent.parent)
 sys.path[0] = ROOT_PROJECT
 
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_tr_ls_acq_optim import LrSparseHsExhaustiveLsTRAcqOptim
+from comb_opt.optimizers.mix_and_match.gp_to_ker_sa_tr_acq_optim import GpToSaTRAcqOptim
 
 import torch
 
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     task, search_space = task_factory('levy', dtype, num_dims=5, variable_type='nominal', num_categories=5)
 
-    optimizer = LrSparseHsExhaustiveLsTRAcqOptim(search_space, n_init=20, dtype=dtype, device=torch.device('cpu'))
+    optimizer = GpToSaTRAcqOptim(search_space, n_init=20, dtype=dtype, device=torch.device('cpu'))
 
     for i in range(100):
         x_next = optimizer.suggest(1)

@@ -37,7 +37,7 @@ class StepIntPara(Parameter):
 
         return torch.tensor(normalised_step_num, dtype=self.dtype)
 
-    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         x = x.cpu().numpy()
 
         # Un-normalise

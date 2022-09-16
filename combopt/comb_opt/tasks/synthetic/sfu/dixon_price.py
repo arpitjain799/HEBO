@@ -13,21 +13,21 @@ import pandas as pd
 from comb_opt.tasks.task_base import TaskBase
 
 
-class DixonPrince(TaskBase):
+class DixonPrice(TaskBase):
     """
-    The Dixon-Prince Function. See https://www.sfu.ca/~ssurjano/dixonpr.html for details.
+    The Dixon-Price Function. See https://www.sfu.ca/~ssurjano/dixonpr.html for details.
     """
 
     @property
     def name(self) -> str:
-        return 'Dixon-Prince Function'
+        return 'Dixon-Price Function'
 
     def __init__(self, num_dims: int, lb: float = -10., ub: float = 10.):
         assert isinstance(num_dims, int)
         assert isinstance(lb, int) or isinstance(lb, float)
         assert isinstance(ub, int) or isinstance(ub, float)
 
-        super(DixonPrince, self).__init__()
+        super(DixonPrice, self).__init__()
 
         self.num_dims = num_dims
         self.lb = lb

@@ -212,7 +212,7 @@ class PymooGeneticAlgorithm(OptimizerBase):
             return self._best_x
 
 
-class NominalGeneticAlgorithm(OptimizerBase):
+class CategoricalGeneticAlgorithm(OptimizerBase):
 
     @property
     def name(self) -> str:
@@ -232,7 +232,7 @@ class NominalGeneticAlgorithm(OptimizerBase):
         assert search_space.num_nominal + search_space.num_ordinal == search_space.num_dims, \
             'Genetic Algorithm currently supports only nominal and ordinal variables'
 
-        super(NominalGeneticAlgorithm, self).__init__(search_space, dtype)
+        super(CategoricalGeneticAlgorithm, self).__init__(search_space, dtype)
 
         self.pop_size = pop_size
         self.num_parents = num_parents
@@ -473,17 +473,17 @@ class NominalGeneticAlgorithm(OptimizerBase):
                     else:
                         if torch.logical_not((_ch1 == self.x_elite).all(axis=1)).all():
                             done = True
-                    counter += 1
+                counter += 1
 
-                    # If its not possible to generate a sample that has not been observed before, perform the crossover again
-                    if not done and counter == 100:
-                        r1 = np.random.randint(0, self.num_parents)
-                        r2 = np.random.randint(0, self.num_parents)
-                        pvar1 = parents[r1].clone()
-                        pvar2 = parents[r2].clone()
-                        ch1, ch2 = self._crossover(pvar1, pvar2)
-                        ch1, ch2 = ch1.unsqueeze(0), ch2.unsqueeze(0)
-                        counter = 0
+                # If its not possible to generate a sample that has not been observed before, perform the crossover again
+                if not done and counter == 100:
+                    r1 = np.random.randint(0, self.num_parents)
+                    r2 = np.random.randint(0, self.num_parents)
+                    pvar1 = parents[r1].clone()
+                    pvar2 = parents[r2].clone()
+                    ch1, ch2 = self._crossover(pvar1, pvar2)
+                    ch1, ch2 = ch1.unsqueeze(0), ch2.unsqueeze(0)
+                    counter = 0
 
             # Mutate child 2
             done = False
@@ -593,71 +593,87 @@ class NominalGeneticAlgorithm(OptimizerBase):
 
         return x_
 
-#
-# class GeneticAlgorithm(OptimizerBase):
-#
-#     @property
-#     def name(self) -> str:
-#         return 'Genetic Algorithm'
-#
-#     def __init__(self,
-#                  search_space: SearchSpace,
-#                  pop_size: int = 40,
-#                  pymoo_n_offsprings: Optional[int] = None,
-#                  fixed_tr_manager: Optional[TrManagerBase] = None,
-#                  comb_opt_num_parents: int = 20,
-#                  comb_opt_num_elite: int = 10,
-#                  store_observations: bool = True,
-#                  allow_repeating_suggestions: bool = False,
-#                  pymoo_tournament_selection: bool = True,
-#                  dtype: torch.dtype = torch.float32):
-#
-#         if search_space.num_nominal == search_space.num_dims:
-#             self.ga = NominalGeneticAlgorithm(search_space=search_space,
-#                                               pop_size=pop_size,
-#                                               num_parents=comb_opt_num_parents,
-#                                               num_elite=comb_opt_num_elite,
-#                                               store_observations=store_observations,
-#                                               allow_repeating_suggestions=allow_repeating_suggestions,
-#                                               fixed_tr_manager=fixed_tr_manager,
-#                                               dtype=dtype)
-#
-#         else:
-#             self.ga = PymooGeneticAlgorithm(search_space=search_space,
-#                                             pop_size=pop_size,
-#                                             n_offsprings=pymoo_n_offsprings,
-#                                             fixed_tr_manager=fixed_tr_manager,
-#                                             store_all=store_observations,
-#                                             tournament_selection=pymoo_tournament_selection,
-#                                             dtype=dtype)
-#
-#     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
-#         return self.ga.method_suggest(n_suggestions)
-#
-#     def observe(self, x: pd.DataFrame, y: np.ndarray):
-#         return self.ga.observe(x, y)
-#
-#     def restart(self):
-#         self.ga.restart()
-#
-#     def set_x_init(self, x: pd.DataFrame):
-#         self.ga.set_x_init(x)
-#
-#     def initialize(self, x: pd.DataFrame, y: np.ndarray):
-#         self.ga.initialize(x, y)
-#
-#     @property
-#     def best_x(self):
-#         return self.ga.best_x
-#
-#
+
+class GeneticAlgorithm(OptimizerBase):
+    """
+    A Genetic Algorithm (GA) optimiser that determines which exact GA algorithm to use based on the variable types in
+    the search space. If the search space contains only nominal variables, an elitist GA algorithm will be used. If the
+    search space contains any other variable type combinations, the Mixed Variable GA from pymoo will be used (see
+    https://pymoo.org/customization/mixed.html). On purely combinatorial problems, the elitist GA algorithm can
+    sometimes outperform the Mixed Variable GA from pymoo by an order of magnitude. However, at the same time it can be
+    approximately 50% slower.
+    """
+
+    @property
+    def name(self) -> str:
+        return 'Genetic Algorithm'
+
+    def __init__(self,
+                 search_space: SearchSpace,
+                 pop_size: int = 40,
+                 pymoo_ga_n_offsprings: Optional[int] = None,
+                 fixed_tr_manager: Optional[TrManagerBase] = None,
+                 cat_ga_num_parents: int = 20,
+                 cat_ga_num_elite: int = 10,
+                 store_observations: bool = True,
+                 cat_ga_allow_repeating_suggestions: bool = False,
+                 pymoo_ga_tournament_selection: bool = True,
+                 dtype: torch.dtype = torch.float32
+                 ):
+
+        super(GeneticAlgorithm, self).__init__(search_space, dtype)
+
+        if search_space.num_nominal == search_space.num_dims:
+            self.backend_ga = CategoricalGeneticAlgorithm(search_space=search_space,
+                                                          pop_size=pop_size,
+                                                          num_parents=cat_ga_num_parents,
+                                                          num_elite=cat_ga_num_elite,
+                                                          store_observations=store_observations,
+                                                          allow_repeating_suggestions=cat_ga_allow_repeating_suggestions,
+                                                          fixed_tr_manager=fixed_tr_manager,
+                                                          dtype=dtype)
+
+        else:
+            self.backend_ga = PymooGeneticAlgorithm(search_space=search_space,
+                                                    pop_size=pop_size,
+                                                    n_offsprings=pymoo_ga_n_offsprings,
+                                                    fixed_tr_manager=fixed_tr_manager,
+                                                    store_observations=store_observations,
+                                                    tournament_selection=pymoo_ga_tournament_selection,
+                                                    dtype=dtype)
+
+        # Overwrite some attributes to have direct access to them
+        self.data_buffer = self.backend_ga.data_buffer
+
+    def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
+        return self.backend_ga.method_suggest(n_suggestions)
+
+    def observe(self, x: pd.DataFrame, y: np.ndarray):
+        self.backend_ga.observe(x, y)
+        self._best_x = self.backend_ga._best_x
+        self.best_y = self.backend_ga.best_y
+
+    def restart(self):
+        self.backend_ga.restart()
+
+    def set_x_init(self, x: pd.DataFrame):
+        self.backend_ga.set_x_init(x)
+
+    def initialize(self, x: pd.DataFrame, y: np.ndarray):
+        self.backend_ga.initialize(x, y)
+
+    @property
+    def best_x(self):
+        return self.backend_ga.best_x
+
 # if __name__ == '__main__':
 #     from comb_opt.factory import task_factory
-#     from comb_opt.optimizers import PymooGeneticAlgorithm
-#     from comb_opt.trust_region.random_restart_tr_manager import RandomRestartTrManager
-#     from comb_opt.utils.distance_metrics import hamming_distance
 #
-#     if __name__ == '__main__':
-#         task, search_space = task_factory('ackley', num_dims=20, variable_type='nominal', num_categories=5)
+#     task, search_space = task_factory('ackley', num_dims=[10, 10], variable_type=['nominal', 'num'], num_categories=[5, None])
 #
-#         self = GeneticAlgorithm(search_space)
+#     self = GeneticAlgorithm(search_space)
+#
+#     for i in range(10):
+#         x_next = self.suggest(1)
+#         y_next = task(x_next)
+#         self.observe(x_next, y_next)

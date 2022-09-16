@@ -1,9 +1,11 @@
+from typing import Dict
+
 import numpy as np
 import pandas as pd
 import torch
 from pymoo.core.problem import Problem
 from pymoo.core.repair import Repair
-from pymoo.core.variable import Real, Integer, Choice, Binary
+from pymoo.core.variable import Real, Integer, Choice, Binary, Variable
 
 from comb_opt.search_space import SearchSpace
 from comb_opt.search_space.params.bool_param import BoolPara
@@ -11,6 +13,7 @@ from comb_opt.search_space.params.integer_param import IntegerPara
 from comb_opt.search_space.params.nominal_param import NominalPara
 from comb_opt.search_space.params.numeric_param import NumericPara
 from comb_opt.search_space.params.ordinal_param import OrdinalPara
+from comb_opt.search_space.params.pow_param import PowPara
 from comb_opt.trust_region.tr_manager_base import TrManagerBase
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
@@ -21,22 +24,27 @@ class PymooProblem(Problem):
 
         self.search_space = search_space
 
-        vars = {}
+        vars: Dict[str, Variable] = {}
 
         for i, name in enumerate(search_space.params):
-            if isinstance(search_space.params[name], NumericPara):
-                vars[f'var_{i}'] = Real(bounds=(search_space.params[name].lb, search_space.params[name].ub))
-            elif isinstance(search_space.params[name], IntegerPara):
-                vars[f'var_{i}'] = Integer(bounds=(search_space.params[name].lb, search_space.params[name].ub))
-            elif isinstance(search_space.params[name], NominalPara):
-                vars[f'var_{i}'] = Choice(options=search_space.params[name].categories)
-            elif isinstance(search_space.params[name], OrdinalPara):
-                vars[f'var_{i}'] = Choice(options=search_space.params[name].categories)
-            elif isinstance(search_space.params[name], BoolPara):
-                vars[f'var_{i}'] = Binary()  # TODO debug this
+            param = search_space.params[name]
+            if isinstance(param, NumericPara):
+                vars[name] = Real(bounds=(param.lb, param.ub))
+            elif isinstance(param, PowPara):
+                vars[name] = Real(bounds=(
+                param.transform(param.param_dict.get('lb')).item(), param.transform(param.param_dict.get('ub')).item()))
+            elif isinstance(param, IntegerPara):
+                vars[name] = Integer(bounds=(param.lb, param.ub))
+            elif isinstance(param, NominalPara):
+                vars[name] = Choice(options=param.categories)
+            elif isinstance(param, OrdinalPara):
+                vars[name] = Choice(options=param.categories)
+            elif isinstance(param, BoolPara):
+                vars[name] = Binary()  # TODO debug this
             else:
                 raise Exception(
-                    ' The Genetic Algorithm optimizer can only work with numeric, integer, nominal and ordinal variables.')
+                    f' The Genetic Algorithm optimizer can only work with numeric,'
+                    f' integer, nominal and ordinal variables. Not with {type(param)}')
 
         super().__init__(vars=vars, n_obj=1, n_ieq_constr=0)
 
@@ -44,11 +52,14 @@ class PymooProblem(Problem):
 
         # Convert X to a dictionary compatible with pandas
         x_pd_dict = {}
-        for i in range(self.search_space.num_params):
-            var_name = f"var_{i}"
+        for i, var_name in enumerate(self.search_space.param_names):
+            param = self.search_space.params[var_name]
             x_pd_dict[self.search_space.param_names[i]] = []
             for j in range(len(x)):
-                x_pd_dict[self.search_space.param_names[i]].append(x[j][var_name])
+                val = x[j][var_name]
+                if isinstance(param, PowPara):
+                    param.inverse_transform(torch.tensor([val])).item()
+                x_pd_dict[self.search_space.param_names[i]].append(val)
 
         return pd.DataFrame(x_pd_dict)
 
@@ -56,8 +67,12 @@ class PymooProblem(Problem):
         x_pymoo = []
         for i in range(len(x)):
             x_pymoo.append({})
-            for j in range(self.search_space.num_params):
-                x_pymoo[i][f'var_{j}'] = x.iloc[i][self.search_space.param_names[j]]
+            for j, param_name in enumerate(self.search_space.param_names):
+                val = x.iloc[i][param_name]
+                param = self.search_space.params[param_name]
+                if isinstance(param, PowPara):
+                    val = param.transform(val).item()
+                x_pymoo[i][param_name] = val
 
         return np.array(x_pymoo)
 

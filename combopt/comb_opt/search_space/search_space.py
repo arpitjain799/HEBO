@@ -20,6 +20,7 @@ from comb_opt.search_space.params.integer_param import IntegerPara
 from comb_opt.search_space.params.nominal_param import NominalPara
 from comb_opt.search_space.params.numeric_param import NumericPara
 from comb_opt.search_space.params.ordinal_param import OrdinalPara
+from comb_opt.search_space.params.param import Parameter
 from comb_opt.search_space.params.permutation_param import PermutationPara
 from comb_opt.search_space.params.pow_integer_param import PowIntegerPara
 from comb_opt.search_space.params.pow_param import PowPara
@@ -48,7 +49,7 @@ class SearchSpace(ABC):
         self.register_param_type('int_exponent', IntExponentPara)
 
         # Storage for all parameters and their names
-        self.params = {}
+        self.params: Dict[str, Parameter] = {}
         self.param_names = []
 
         # Storage for continuous parameters
@@ -80,6 +81,12 @@ class SearchSpace(ABC):
         # Parse all parameters
         self.parse(params)
 
+        self.opt_ub = np.array([self.params[p].opt_ub for p in self.param_names])
+        self.opt_lb = np.array([self.params[p].opt_lb for p in self.param_names])
+
+        self.cont_lb = [self.params[p].lb for p in self.cont_names]
+        self.cont_ub = [self.params[p].ub for p in self.cont_names]
+
     def register_param_type(self, type_name, para_class):
         """
         User can define their specific parameter type and register the new type
@@ -95,7 +102,7 @@ class SearchSpace(ABC):
                 f" of {[name for name in self.param_types]}"
             param = self.param_types[param_dict.get('type')](param_dict, self.dtype)
             assert np.sum(
-                param.is_cont + param.is_disc + param.is_ordinal + param.is_nominal + param.is_permutation) == 1,\
+                param.is_cont + param.is_disc + param.is_ordinal + param.is_nominal + param.is_permutation) == 1, \
                 'parameter can have only a single type'
 
             self.param_names.append(param.name)
@@ -197,7 +204,10 @@ class SearchSpace(ABC):
                 inv_dict[param] = self.params[param].inverse_transform(x[:, idx])
                 idx += 1
 
-        return pd.DataFrame(inv_dict)
+        inv_x = pd.DataFrame.from_dict(inv_dict)
+        if self.num_cont > 0:  # deal with numerical inconsistencies
+            inv_x[self.cont_names] = inv_x[self.cont_names].clip(self.cont_lb, self.cont_ub)
+        return inv_x
 
     @property
     def num_params(self):
@@ -239,11 +249,6 @@ class SearchSpace(ABC):
         return num_dims
 
     @property
-    def cont_lb(self):
-        cont_num_lb = [self.params[p].opt_lb for p in self.cont_names]
-        return cont_num_lb
-
-    @property
     def disc_lb(self):
         dist_num_lb = [self.params[p].opt_lb for p in self.disc_names]
         return dist_num_lb
@@ -257,19 +262,6 @@ class SearchSpace(ABC):
     def nominal_lb(self):
         nominal_lb = [self.params[p].opt_lb for p in self.nominal_names]
         return nominal_lb
-
-    @property
-    def opt_lb(self):
-        cont_num_lb = self.cont_lb
-        disc_num_lb = self.disc_lb
-        ordinal_lb = self.ordinal_lb
-        nominal_lb = self.nominal_lb
-        return np.array(cont_num_lb + disc_num_lb + ordinal_lb + nominal_lb)
-
-    @property
-    def cont_ub(self):
-        cont_num_ub = [self.params[p].opt_ub for p in self.cont_names]
-        return cont_num_ub
 
     @property
     def disc_ub(self):
@@ -286,14 +278,6 @@ class SearchSpace(ABC):
         nominal_ub = [self.params[p].opt_ub for p in self.nominal_names]
         return nominal_ub
 
-    @property
-    def opt_ub(self):
-        cont_num_ub = self.cont_ub
-        disc_num_ub = self.disc_ub
-        ordinal_ub = self.ordinal_ub
-        nominal_ub = self.nominal_ub
-        return np.array(cont_num_ub + disc_num_ub + ordinal_ub + nominal_ub)
-
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
@@ -307,16 +291,12 @@ class SearchSpaceSubSet(SearchSpace):
                  nominal_dims: bool = False,
                  ordinal_dims: bool = False,
                  permutation_dims: bool = False,
-                 dtype: torch.dtype=torch.float32):
+                 dtype: torch.dtype = torch.float32):
 
         params = []
         for param_name in search_space.param_names:
 
             append = False
-
-            cont_to_field = {
-                "cont_dims": "is_cont",
-            }
 
             if cont_dims and search_space.params[param_name].is_cont:
                 append = True

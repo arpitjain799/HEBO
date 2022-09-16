@@ -6,6 +6,7 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -20,14 +21,18 @@ class Levy(TaskBase):
 
     @property
     def name(self) -> str:
-        return 'Levy Function'
+        return f'Levy Function{self.task_name_suffix}'
 
-    def __init__(self, num_dims: int, lb: int = -10, ub: int = 10):
+    def __init__(self, num_dims: int, lb: int = -10, ub: int = 10, task_name_suffix: Optional[str] = None):
         assert isinstance(num_dims, int)
         assert isinstance(lb, int) or isinstance(lb, float)
         assert isinstance(ub, int) or isinstance(ub, float)
 
         super(Levy, self).__init__()
+
+        if task_name_suffix is None:
+            task_name_suffix = ""
+        self.task_name_suffix = task_name_suffix
 
         self.num_dims = num_dims
         self.lb = lb

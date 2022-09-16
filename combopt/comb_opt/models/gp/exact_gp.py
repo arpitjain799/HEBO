@@ -8,6 +8,7 @@
 # PARTICULAR PURPOSE. See the MIT License for more details.
 
 import copy
+import math
 import warnings
 from typing import Optional, List
 
@@ -207,9 +208,37 @@ class ExactGPModel(ModelBase, torch.nn.Module):
             # Evaluate all points at once
             with gpytorch.settings.fast_pred_var(), gpytorch.settings.debug(False):
                 x = x.to(device=self.device, dtype=self.dtype)
-                pred = self.gp(x)
-                if self.pred_likelihood:
-                    pred = self.likelihood(pred)
+                try:
+                    pred = self.gp(x)
+                    if self.pred_likelihood:
+                        pred = self.likelihood(pred)
+                except gpytorch.utils.errors.NotPSDError as error_not_psd:
+                    reduction_factor_0 = .8
+                    reduction_factor = .8
+                    valid = False
+                    n_training_points = len(self.gp.train_inputs[0])
+                    while not valid and n_training_points > 1:
+                        warnings.warn(
+                            f"--- NotPSDError -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
+                        try:
+                            gp = copy.deepcopy(self.gp)
+                            n_training_points = len(gp.train_inputs[0])
+                            filtre = np.random.choice(np.arange(n_training_points), replace=False,
+                                                      size=math.ceil(n_training_points * reduction_factor))
+                            gp.train_inputs = (gp.train_inputs[0][filtre],)
+                            gp._train_targets = gp._train_targets[filtre]
+                            pred = gp(x)
+                            if self.pred_likelihood:
+                                pred = self.likelihood(pred)
+                            valid = True
+                        except gpytorch.utils.errors.NotPSDError:
+                            warnings.warn(f"--- NotPSDError -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
+                            reduction_factor = reduction_factor * reduction_factor_0
+                            pass
+
+                    if not valid:
+                        raise error_not_psd
+
                 mu_ = pred.mean.reshape(-1, self.num_out)
                 var_ = pred.variance.reshape(-1, self.num_out)
         else:

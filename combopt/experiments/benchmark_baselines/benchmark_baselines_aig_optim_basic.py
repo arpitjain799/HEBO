@@ -29,7 +29,6 @@ if __name__ == '__main__':
     bocs = BOCS(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boss = BOSS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
     combo = COMBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-    cocabo = CoCaBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boils = BOiLS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
     mab_optim = MultiArmedBandit(search_space=search_space, batch_size=1, max_n_iter=200, noisy_black_box=False, dtype=dtype)

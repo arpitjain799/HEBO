@@ -27,11 +27,11 @@ class Parameter(ABC):
         pass
 
     @abstractmethod
-    def transform(self, x: np.array) -> np.array:
+    def transform(self, x: np.array) -> torch.Tensor:
         pass
 
     @abstractmethod
-    def inverse_transform(self, x: np.array) -> np.array:
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         pass
 
     @property

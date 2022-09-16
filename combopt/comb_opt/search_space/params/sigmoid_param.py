@@ -46,7 +46,7 @@ class SigmoidPara(Parameter):
 
         return torch.tensor(normalised_logit_x, dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         x = x.cpu().detach().numpy()
         # Un-normalise
         logit_x = (self.ub - self.lb) * x + self.lb

@@ -20,7 +20,7 @@ import os
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(add_help=True,
-                                     description='Plot combinatorial optimisation results.')
+                                     description='Plot mixed optimisation results.')
 
     parser.add_argument("--final_plot", "-f", action="store_true",
                         help="Make the final plot style, Setting this to true will result in a plotting time ~60 s."
@@ -34,25 +34,13 @@ if __name__ == '__main__':
     save_dir = RESULTS_DIR
 
     task_names = [
-        'Ackley Function',
-        'Pest Control',
-        'RNA Inverse Folding',
-        '1ADQ_A Antibody Design',
-        'EDA Sequence Optimization - Design sin - Ops basic - Pattern basic - Obj both',
-        # 'Bayesmark task | Mod-lasso | DB diabetes | Metr-mae',
-        # 'Bayesmark task | Mod-lasso | DB boston | Metr-mae',
-        # 'Bayesmark task | Mod-linear | DB diabetes | Metr-mae',
-
-        # 'Bayesmark task | Mod-linear | DB boston | Metr-mae',
+        'Levy Function 6-nom-11 6-int 6-num',
+        'XGBoost Opt - mnist',
     ]
 
     method_names = [
-        'BOCS',
-        'COMBO',
-        'BOSS',
         'Casmopolitan',
-        'BOiLS',
-        'Multi-Armed Bandit',
+        'CoCaBO',
         'Random Search',
         'Genetic Algorithm',
         'Local Search',
@@ -75,9 +63,11 @@ if __name__ == '__main__':
                          box.width, box.height * 0.80])
 
     # Put a legend below current axis
-    g.axes.flatten()[2].legend(loc='upper center', bbox_to_anchor=(-0.2, -0.25),
+    axes = g.axes.flatten()
+    ind = len(axes) // 2
+    axes[ind].legend(loc='upper center', bbox_to_anchor=(-0.2, -0.25),
                                fancybox=True, shadow=True, ncol=5)
 
-    plt.savefig(os.path.join(save_dir, 'benchmarking_baselines.png'))
-    plt.savefig(os.path.join(save_dir, 'benchmarking_baselines.pdf'))
+    plt.savefig(os.path.join(save_dir, 'benchmarking_mixed_baselines.png'))
+    plt.savefig(os.path.join(save_dir, 'benchmarking_mixed_baselines.pdf'))
     plt.close()

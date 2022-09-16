@@ -6,6 +6,7 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -20,10 +21,10 @@ class Ackley(TaskBase):
 
     @property
     def name(self) -> str:
-        return 'Ackley Function'
+        return f'Ackley Function{self.task_name_suffix}'
 
     def __init__(self, num_dims: int = 10, lb: float = -32.768, ub: float = 32.768, a: float = 20, b: float = 0.2,
-                 c: float = 2 * np.pi):
+                 c: float = 2 * np.pi, task_name_suffix: Optional[str] = None):
         assert isinstance(num_dims, int)
         assert isinstance(lb, int) or isinstance(lb, float)
         assert isinstance(ub, int) or isinstance(ub, float)
@@ -32,6 +33,10 @@ class Ackley(TaskBase):
         assert isinstance(c, int) or isinstance(c, float)
 
         super(Ackley, self).__init__()
+
+        if task_name_suffix is None:
+            task_name_suffix = ""
+        self.task_name_suffix = task_name_suffix
 
         self.num_dims = num_dims
         self.lb = lb

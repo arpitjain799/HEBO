@@ -29,7 +29,7 @@ class IntegerPara(Parameter):
         normalised_x = (x.astype(float) - self.lb) / (self.ub - self.lb)
         return torch.tensor(normalised_x, dtype=self.dtype)
 
-    def inverse_transform(self, x):
+    def inverse_transform(self, x: torch.Tensor) -> np.ndarray:
         if isinstance(x, torch.Tensor):
             x = x.cpu().numpy()
         # Un-normalise
