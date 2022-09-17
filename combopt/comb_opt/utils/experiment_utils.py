@@ -67,7 +67,7 @@ def run_experiment(task: TaskBase,
 
         for i, seed in enumerate(random_seeds):
             print(
-                f'{current_time_formatter()} - Optimizer : {optimizer.name:>{max_name_len}} - Seed {i + 1:2d}/{len(random_seeds):2d}')
+                f'{current_time_formatter()} - Optimizer : {optimizer.name:>{max_name_len}} - Seed {seed} {i + 1:2d}/{len(random_seeds):2d}')
 
             set_random_seed(seed)
             task.restart()

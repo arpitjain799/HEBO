@@ -97,7 +97,7 @@ class MultiArmedBandit(OptimizerBase):
                                                replace=False)
                     x_next[sample_idx][indices] = self.tr_center[0][indices]
 
-        # Eliminate all duplicates in the current batch
+        # Eliminate suggestions that have already been observed and all duplicates in the current batch
         for sample_idx in range(n_suggestions):
             tol = 0
             seen = self.was_sample_seen(x_next, sample_idx)

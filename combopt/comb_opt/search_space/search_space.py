@@ -84,8 +84,8 @@ class SearchSpace(ABC):
         self.opt_ub = np.array([self.params[p].opt_ub for p in self.param_names])
         self.opt_lb = np.array([self.params[p].opt_lb for p in self.param_names])
 
-        self.cont_lb = [self.params[p].lb for p in self.cont_names]
-        self.cont_ub = [self.params[p].ub for p in self.cont_names]
+        self.cont_lb = [self.params[p].param_dict["lb"] for p in self.cont_names]
+        self.cont_ub = [self.params[p].param_dict["ub"] for p in self.cont_names]
 
     def register_param_type(self, type_name, para_class):
         """

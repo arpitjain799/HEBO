@@ -32,11 +32,11 @@ if __name__ == '__main__':
     cocabo = CoCaBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boils = BOiLS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
-    mab_optim = MultiArmedBandit(search_space=search_space, batch_size=1, max_n_iter=200, noisy_black_box=False, dtype=dtype)
+    mab_optim = MultiArmedBandit(search_space=search_space, batch_size=1, max_n_iter=200, noisy_black_box=False,
+                                 dtype=dtype)
 
-    optimizers = [boss, boils, casmopolitan, combo, bocs, cocabo, rs_optim, ls_optim, sa_optim, ga_optim, mab]
-    optimizers = [mab_optim]
+    optimizers = [boss, boils, casmopolitan, combo, bocs, mab_optim, rs_optim, ls_optim, sa_optim, ga_optim]
+    optimizers = [mab_optim, boss]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,
                    very_verbose=True)
-

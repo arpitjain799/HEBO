@@ -7,8 +7,8 @@ import torch
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
 
 from comb_opt.factory import task_factory
-from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, GeneticAlgorithm, BOCS, BOSS, COMBO, \
-    CoCaBO, Casmopolitan, BOiLS, PymooGeneticAlgorithm
+from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, BOCS, BOSS, COMBO, \
+    Casmopolitan, BOiLS, PymooGeneticAlgorithm
 from comb_opt.utils.experiment_utils import run_experiment
 
 if __name__ == '__main__':
@@ -29,7 +29,6 @@ if __name__ == '__main__':
     bocs = BOCS(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boss = BOSS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
     combo = COMBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-    cocabo = CoCaBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boils = BOiLS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
 
@@ -39,8 +38,8 @@ if __name__ == '__main__':
         # casmopolitan,
         # combo,
         # bocs,
-        # cocabo,
-        rs_optim,
+        # mab_optim,
+        # rs_optim,
         # ls_optim,
         # sa_optim,
         # ga_optim

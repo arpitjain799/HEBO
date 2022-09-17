@@ -1,5 +1,7 @@
 # Greatly inspired by:
 # https://github.com/xingchenwan/Casmopolitan/blob/ae7f5a06206712e7776562c5c0e8f771c8780575/mixed_test_func/xgboost_hp.py
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
@@ -9,6 +11,7 @@ import xgboost
 from sklearn.utils import Bunch
 
 from comb_opt.tasks import TaskBase
+from comb_opt.utils.general_utils import load_w_pickle, save_w_pickle
 
 
 class XGBoostTask(TaskBase):
@@ -73,7 +76,15 @@ class XGBoostTask(TaskBase):
         """
 
         # Create model using the chosen hyps
-        model = self.create_model(x.to_dict())
+        x_dict = x.to_dict()
+
+        results_path = self.results_path()
+        if os.path.exists(results_path):
+            evaluations = load_w_pickle(results_path)
+            if str(x_dict) in evaluations:
+                return evaluations[str(x_dict)]
+
+        model = self.create_model(x_dict)
 
         # Train model
         model.fit(self.train_x, self.train_y)
@@ -88,6 +99,14 @@ class XGBoostTask(TaskBase):
             score = metrics.mean_squared_error(self.test_y, y_pred)
         else:
             raise NotImplementedError
+
+        if not os.path.exists(results_path):
+            os.makedirs(os.path.dirname(results_path), exist_ok=1)
+            save_w_pickle({}, results_path)
+
+        evaluations = load_w_pickle(results_path)
+        evaluations[str(x_dict)] = score
+        save_w_pickle(evaluations, results_path)
 
         return score
 
@@ -146,3 +165,11 @@ class XGBoostTask(TaskBase):
         ]
 
         return params
+
+    def results_path(self) -> str:
+        return self.get_result_path(dataset_id=self.dataset_id)
+
+    @staticmethod
+    def get_result_path(dataset_id: str) -> str:
+        results_dir = str(Path(os.path.realpath(__file__)).parent)
+        return os.path.join(results_dir, f"xgboost-{dataset_id}", "evaluations.pkl")

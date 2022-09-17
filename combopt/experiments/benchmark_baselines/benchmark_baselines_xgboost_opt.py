@@ -21,7 +21,6 @@ if __name__ == '__main__':
     bo_device = torch.device('cuda:0')
     max_num_iter = 200
     random_seeds = [42, 43, 44, 45, 46]
-    random_seeds = [46]
 
     rs_optim = RandomSearch(search_space=search_space, dtype=dtype)
     ls_optim = LocalSearch(search_space=search_space, dtype=dtype)
@@ -32,11 +31,11 @@ if __name__ == '__main__':
 
     optimizers = [
         casmopolitan,
-        # rs_optim,
-        # ls_optim,
-        # sa_optim,
-        # ga_optim,
-        # cocabo
+        rs_optim,
+        ls_optim,
+        sa_optim,
+        ga_optim,
+        cocabo
     ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,
