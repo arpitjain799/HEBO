@@ -146,6 +146,10 @@ def search_space_factory(task_name: str, dtype: torch.dtype, **kwargs) -> Search
         dataset_id = kwargs.get('dataset_id')
         from comb_opt.tasks.xgboost_opt.xgboost_opt_task import XGBoostTask
         params = XGBoostTask.get_search_space_params(dataset_id=dataset_id)
+
+    elif task_name == 'svm_opt':
+        from comb_opt.tasks.svm_opt.svm_opt import SVMOptTask
+        params = SVMOptTask.get_search_space_params()
     else:
         raise NotImplementedError(f'{task_name} is not an implemented task.')
 
@@ -233,6 +237,11 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         search_space = search_space_factory(task_name=task_name, dtype=dtype, dataset_id=dataset_id)
         from comb_opt.tasks.xgboost_opt.xgboost_opt_task import XGBoostTask
         task = XGBoostTask(dataset_id=dataset_id, split=split, split_seed=split_seed)
+
+    elif task_name == "svm_opt":
+        search_space = search_space_factory(task_name=task_name, dtype=dtype)
+        from comb_opt.tasks.svm_opt.svm_opt import SVMOptTask
+        task = SVMOptTask()
 
     elif "aig_optimization" in task_name:
         from comb_opt.tasks.eda_seq_opt.eda_seq_opt_task import EDASeqOptimization

@@ -167,6 +167,13 @@ class BoBase(OptimizerBase, ABC):
 
     def observe(self, x: pd.DataFrame, y: np.ndarray):
 
+        num_nan = np.isnan(y).sum()
+        if num_nan > 0:
+            raise ValueError(f"Got {num_nan} / {len(y)} NaN observations.\n"
+                             f"X:\n"
+                             f"    {x}\n"
+                             f"Y:\n"
+                             f"    {y}")
         # Transform x and y to torch tensors
         x = self.search_space.transform(x)
 

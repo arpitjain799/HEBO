@@ -35,12 +35,10 @@ class PymooProblem(Problem):
                 param.transform(param.param_dict.get('lb')).item(), param.transform(param.param_dict.get('ub')).item()))
             elif isinstance(param, IntegerPara):
                 vars[name] = Integer(bounds=(param.lb, param.ub))
-            elif isinstance(param, NominalPara):
-                vars[name] = Choice(options=param.categories)
-            elif isinstance(param, OrdinalPara):
-                vars[name] = Choice(options=param.categories)
+            elif isinstance(param, (NominalPara, OrdinalPara)):
+                vars[name] = Choice(options=np.arange(len(param.categories)))
             elif isinstance(param, BoolPara):
-                vars[name] = Binary()  # TODO debug this
+                vars[name] = Binary()  # TODO: debug this
             else:
                 raise Exception(
                     f' The Genetic Algorithm optimizer can only work with numeric,'
@@ -57,8 +55,10 @@ class PymooProblem(Problem):
             x_pd_dict[self.search_space.param_names[i]] = []
             for j in range(len(x)):
                 val = x[j][var_name]
+                if isinstance(param, (OrdinalPara, NominalPara)):
+                    val = param.categories[val]
                 if isinstance(param, PowPara):
-                    param.inverse_transform(torch.tensor([val])).item()
+                    val = param.inverse_transform(torch.tensor([val])).item()
                 x_pd_dict[self.search_space.param_names[i]].append(val)
 
         return pd.DataFrame(x_pd_dict)
@@ -70,6 +70,8 @@ class PymooProblem(Problem):
             for j, param_name in enumerate(self.search_space.param_names):
                 val = x.iloc[i][param_name]
                 param = self.search_space.params[param_name]
+                if isinstance(param, (OrdinalPara, NominalPara)):
+                    val = param.categories.index(val)
                 if isinstance(param, PowPara):
                     val = param.transform(val).item()
                 x_pymoo[i][param_name] = val

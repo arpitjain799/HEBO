@@ -22,7 +22,7 @@ from gpytorch.likelihoods import GaussianLikelihood, MultitaskGaussianLikelihood
 from gpytorch.means import ConstantMean, MultitaskMean
 from gpytorch.models import ExactGP
 from gpytorch.priors import Prior, LogNormalPrior
-from gpytorch.utils.errors import NotPSDError
+from gpytorch.utils.errors import NotPSDError, NanError
 
 from comb_opt.models.model_base import ModelBase
 from comb_opt.search_space import SearchSpace
@@ -148,7 +148,7 @@ class ExactGPModel(ModelBase, torch.nn.Module):
             for epoch in range(self.num_epochs):
                 def closure(append_loss=True):
                     opt.zero_grad()
-                    dist = self.gp(self.x)
+                    dist = self.psd_error_handling_gp_forward(self.x)
                     loss = -1 * mll(dist, self.y.squeeze())
                     loss.backward()
                     if append_loss:
@@ -204,14 +204,20 @@ class ExactGPModel(ModelBase, torch.nn.Module):
     def psd_error_handling_gp_forward(self, x: torch.Tensor):
         try:
             pred = self.gp(x)
-        except gpytorch.utils.errors.NotPSDError as error_not_psd:
+        except (NotPSDError, NanError) as error_gp:
+            if isinstance(error_gp, NotPSDError):
+                error_type = "notPSD-error"
+            elif isinstance(error_gp, NanError):
+                error_type = "nan-error"
+            else:
+                raise ValueError(type(error_gp))
             reduction_factor_0 = .8
             reduction_factor = .8
             valid = False
             n_training_points = len(self.gp.train_inputs[0])
             while not valid and n_training_points > 1:
                 warnings.warn(
-                    f"--- NotPSDError -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
+                    f"--- {error_type} -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
                 try:
                     gp = copy.deepcopy(self.gp)
                     n_training_points = len(gp.train_inputs[0])
@@ -222,14 +228,20 @@ class ExactGPModel(ModelBase, torch.nn.Module):
                     pred = gp(x)
 
                     valid = True
-                except gpytorch.utils.errors.NotPSDError:
+                except (NotPSDError, NanError) as inside_error_gp:
+                    if isinstance(inside_error_gp, NotPSDError):
+                        inside_error_type = "notPSD-error"
+                    elif isinstance(inside_error_gp, NanError):
+                        inside_error_type = "nan-error"
+                    else:
+                        raise ValueError(type(inside_error_gp))
                     warnings.warn(
-                        f"--- NotPSDError -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
+                        f"--- {inside_error_type} -> remove {(1 - reduction_factor) * 100:.2f}% of training points randomly and retry to predict ---")
                     reduction_factor = reduction_factor * reduction_factor_0
                     pass
 
             if not valid:
-                raise error_not_psd
+                raise error_gp
         return pred
 
     def predict(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):

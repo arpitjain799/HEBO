@@ -25,29 +25,28 @@ from pathlib import Path
 ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent.parent)
 sys.path[0] = ROOT_PROJECT
 
-from comb_opt.utils.general_utils import time_formatter
 import torch
 
 from comb_opt.optimizers import RandomSearch
-from comb_opt.utils.plotting_utils import plot_convergence_curve
-import time
 
 if __name__ == "__main__":
     from comb_opt.factory import task_factory
 
-    task, search_space = task_factory('xgboost_opt', torch.float32, dataset_id="mnist")
+    task_kwargs = {'designs_group_id': "adder", "operator_space_id": "basic", "objective": "both",
+                   "seq_operators_pattern_id": "freePattern20"}
+    dtype = torch.float32
+    task, search_space = task_factory('aig_optimization_hyp', dtype, **task_kwargs)
+    print(search_space.param_names)
 
     optimizer = RandomSearch(search_space, store_observations=True)
     print(f"{optimizer.name}_{task.name}")
 
-    t = time.time()
     for i in range(10):
-        x_next = optimizer.suggest(3)
+        x_next = optimizer.suggest(5)
         y_next = task(x_next)
         optimizer.observe(x_next, y_next)
-        print(f'Iteration {i + 1:>4d} - Best f(x) {optimizer.best_y:.3f} - Took {time_formatter(time.time() - t)} '
-              f'from beginning')
+        print(f'Iteration {i + 1:>4d} - Best f(x) {optimizer.best_y:.3f}')
 
-    plot_convergence_curve(optimizer, task,
-                           os.path.join(Path(os.path.realpath(__file__)).parent.parent.resolve(),
-                                        f'{optimizer.name}_{task.name}_test.png'), plot_per_iter=True)
+    # plot_convergence_curve(optimizer, task,
+    #                        os.path.join(Path(os.path.realpath(__file__)).parent.parent.parent.resolve(),
+    #                                     f'{optimizer.name}_{task.name}_test.png'), plot_per_iter=True)

@@ -22,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent.parent)
 sys.path[0] = ROOT_PROJECT
 
 import torch

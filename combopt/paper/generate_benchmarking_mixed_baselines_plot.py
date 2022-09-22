@@ -35,7 +35,10 @@ if __name__ == '__main__':
 
     task_names = [
         'Levy Function 6-nom-11 6-int 6-num',
+        'Ackley Function 50-nom-2 3-num',
         'XGBoost Opt - mnist',
+        'SVM Opt',
+        'EDA Sequence Optimization - Design sin - Ops basic - Pattern basic_w_post_map - Hyps boils_hyp_op_space - Obj both'
     ]
 
     method_names = [
@@ -65,7 +68,7 @@ if __name__ == '__main__':
     # Put a legend below current axis
     axes = g.axes.flatten()
     ind = len(axes) // 2
-    axes[ind].legend(loc='upper center', bbox_to_anchor=(-0.2, -0.25),
+    axes[ind].legend(loc='upper center', bbox_to_anchor=(0.2, -0.25),
                                fancybox=True, shadow=True, ncol=5)
 
     plt.savefig(os.path.join(save_dir, 'benchmarking_mixed_baselines.png'))

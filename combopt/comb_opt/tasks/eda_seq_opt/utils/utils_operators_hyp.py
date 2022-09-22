@@ -26,18 +26,75 @@ from comb_opt.tasks.eda_seq_opt.utils.utils_operators import BOILS_MAPPING_OPERA
 # ------------ Pre-mapping --------------- #
 
 BOILS_PRE_MAPPING_ALGO_PARAMS = {
+    'rewrite_wo_z': [{'name': 'rewrite_wo_z -l', 'type': 'bool'}],
+    'rewrite_w_z': [{'name': 'rewrite_w_z -l', 'type': 'bool'}],
+    'refactor_w_z': [
+        {'name': 'refactor_w_z N', 'type': 'int', 'lb': 2, 'ub': 15},
+        {'name': 'refactor_w_z -l', 'type': 'bool'},
+    ],
+    'refactor_wo_z': [
+        {'name': 'refactor_wo_z N', 'type': 'int', 'lb': 2, 'ub': 15},
+        {'name': 'refactor_wo_z -l', 'type': 'bool'},
+    ],
+    'resub': [{'name': 'resub K', 'type': 'int', 'lb': 5, 'ub': 8},
+              {'name': 'resub N', 'type': 'int', 'lb': 0, 'ub': 3},
+              {'name': 'resub -l', 'type': 'bool'},
+              {'name': 'resub -z', 'type': 'bool'}],
+    'balance': [{'name': 'balance -l', 'type': 'bool'},
+                {'name': 'balance -d', 'type': 'bool'},
+                {'name': 'balance -s', 'type': 'bool'},
+                {'name': 'balance -x', 'type': 'bool'}],
+    '&blut': [{'name': '&blut C', 'type': 'int', 'lb': 1, 'ub': 8},
+              {'name': '&blut -a', 'type': 'bool'}],
+    '&sopb': [{'name': '&sopb C', 'type': 'int', 'lb': 8, 'ub': 100}],
+    '&dsdb': [{'name': '&dsdb C', 'type': 'int', 'lb': 8, 'ub': 100}],
+    'fraig': [{'name': 'fraig -r', 'type': 'bool'}],
+}
+
+BOILS_PRE_MAPPING_ALGO_NO_PARAMS = {
     op.op_id: [] for op in BOILS_PRE_MAPPING_OPERATORS
 }
 
 # ------------ Mapping --------------- #
 
 BOILS_MAPPING_ALGO_PARAMS = {
+    'if': [
+        {'name': 'if C', 'type': 'int', 'lb': 4, 'ub': 1024},
+        {'name': 'if F', 'type': 'int', 'lb': 0, 'ub': 2},
+        {'name': 'if A', 'type': 'int', 'lb': 0, 'ub': 4},
+    ],
+    'if -a': [
+        {'name': 'if -a C', 'type': 'int', 'lb': 4, 'ub': 1024},
+        {'name': 'if -a F', 'type': 'int', 'lb': 0, 'ub': 2},
+        {'name': 'if -a A', 'type': 'int', 'lb': 0, 'ub': 4},
+    ],
+}
+
+BOILS_MAPPING_ALGO_NO_PARAMS = {
     op.op_id: [] for op in BOILS_MAPPING_OPERATORS
 }
 
 # ------------ Post-mapping --------------- #
 
 BOILS_POST_MAPPING_ALGO_PARAMS = {
+    'speedup_if': [
+        {'name': 'speedup_if speedup P', 'type': 'int', 'lb': 5, 'ub': 20},
+        {'name': 'speedup_if speedup N', 'type': 'int', 'lb': 1, 'ub': 5},
+        {'name': 'speedup_if if C', 'type': 'int', 'lb': 4, 'ub': 256},
+        {'name': 'speedup_if if F', 'type': 'int', 'lb': 0, 'ub': 2},
+    ],
+    'mfs2_lutpack': [
+        {'name': 'mfs2_lutpack mfs2 W', 'type': 'int', 'lb': 2, 'ub': 200},
+        {'name': 'mfs2_lutpack mfs2 M', 'type': 'int', 'lb': 300, 'ub': 1000},
+        {'name': 'mfs2_lutpack mfs2 D', 'type': 'int', 'lb': 0, 'ub': 20},
+        {'name': 'mfs2_lutpack mfs2 -a', 'type': 'bool'},
+        {'name': "mfs2_lutpack lutpack N", 'type': 'int', 'lb': 2, 'ub': 16},
+        {'name': "mfs2_lutpack lutpack S", 'type': 'int', 'lb': 0, 'ub': 3},
+        {'name': "mfs2_lutpack lutpack -z", 'type': 'bool'},
+    ],
+}
+
+BOILS_POST_MAPPING_ALGO_NO_PARAMS = {
     op.op_id: [] for op in BOILS_POST_MAPPING_OPERATORS
 }
 

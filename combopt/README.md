@@ -48,6 +48,7 @@ Install the package itself
 - EDA Sequence and Parameter Optimisation (AIG sequence and parameter optimisation)
 - MIG Sequence Optimisation
 - Bayesmark hyperparameter tuning tasks
+- SVM hyperparameter tuning: `svm_opt`
 - XG-Boost hyperparameter tuning
 
 ### How to access a task
@@ -73,6 +74,7 @@ task, search_space = task_factory(task_name='antibody_design')
 - Local Search
 - Simulated Annealing
 - Genetic Algorithm
+- Multi-Armed Bandit
 
 ## Typical use-case example
 ```

@@ -35,7 +35,7 @@ import time
 if __name__ == "__main__":
     from comb_opt.factory import task_factory
 
-    task, search_space = task_factory('xgboost_opt', torch.float32, dataset_id="mnist")
+    task, search_space = task_factory('svm_opt', torch.float32)
 
     optimizer = RandomSearch(search_space, store_observations=True)
     print(f"{optimizer.name}_{task.name}")
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         x_next = optimizer.suggest(3)
         y_next = task(x_next)
         optimizer.observe(x_next, y_next)
-        print(f'Iteration {i + 1:>4d} - Best f(x) {optimizer.best_y:.3f} - Took {time_formatter(time.time() - t)} '
+        print(f'Iteration {i + 1:>4d} - f(x) {y_next.flatten()[-1]:.3f}- Best f(x) {optimizer.best_y:.3f} - Took {time_formatter(time.time() - t)} '
               f'from beginning')
 
     plot_convergence_curve(optimizer, task,

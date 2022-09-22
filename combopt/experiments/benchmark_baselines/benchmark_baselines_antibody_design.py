@@ -15,7 +15,7 @@ if __name__ == '__main__':
     task_name = 'antibody_design'
     task_kwargs = {'num_cpus': 10, 'first_cpu': 10}
     bo_n_init = 20
-    bo_device = torch.device('cuda:1')
+    bo_device = torch.device('cuda:0')
     max_num_iter = 200
     dtype = torch.float32
     random_seeds = [42, 43, 44, 45, 46]
@@ -36,7 +36,6 @@ if __name__ == '__main__':
                                  dtype=dtype)
 
     optimizers = [boss, boils, casmopolitan, combo, bocs, mab_optim, rs_optim, ls_optim, sa_optim, ga_optim]
-    optimizers = [mab_optim, boss]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,
                    very_verbose=True)

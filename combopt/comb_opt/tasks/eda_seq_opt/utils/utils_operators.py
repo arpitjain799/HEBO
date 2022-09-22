@@ -1001,7 +1001,7 @@ class SeqOperatorsPattern:
 
 SEQ_OPERATOR_PATTERNS: Dict[str, SeqOperatorsPattern] = {
     'basic': SeqOperatorsPattern([0] * 20),
-    'freePattern21': SeqOperatorsPattern([-1] * 20 + [-2]),
+    'basic_w_post_map': SeqOperatorsPattern(([0] * 7 + [1] + [2, 2]) * 2),
 }
 
 
