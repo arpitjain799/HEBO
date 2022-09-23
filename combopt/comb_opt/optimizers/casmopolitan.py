@@ -29,16 +29,32 @@ class Casmopolitan(BoBase):
     @property
     def name(self) -> str:
         if self.use_tr:
-            name = f'Casmopolitan'
+            if self.model_numeric_kernel_name == 'mat52' and self.model_cat_kernel_name == 'transformed_overlap':
+                name = f'Casmopolitan'
+            else:
+                if self.is_mixed:
+                    name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - Tr-based IS acq optim'
+                elif self.is_numeric:
+                    name = f'GP ({self.model_numeric_kernel_name}) - Tr-based IS acq optim'
+                elif self.is_nominal:
+                    name = f'GP ({self.model_cat_kernel_name}) - Tr-based IS acq optim'
         else:
-            name = f'GP (TO) - IS acq optim'
+            if self.is_mixed:
+                name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - IS acq optim'
+            elif self.is_numeric:
+                name = f'GP ({self.model_numeric_kernel_name}) - IS acq optim'
+            elif self.is_nominal:
+                name = f'GP ({self.model_cat_kernel_name}) - IS acq optim'
+
         return name
 
     def __init__(self,
                  search_space: SearchSpace,
                  n_init: int,
+                 model_numeric_kernel_name: str = 'mat52',
                  model_num_kernel_ard: bool = True,
                  model_num_kernel_lengthscale_constr: Optional[Interval] = None,
+                 model_cat_kernel_name='transformed_overlap',
                  model_cat_kernel_ard: bool = True,
                  model_cat_kernel_lengthscale_constr: Optional[Interval] = None,
                  model_noise_prior: Optional[Prior] = None,
@@ -51,7 +67,7 @@ class Casmopolitan(BoBase):
                  model_max_cholesky_size: int = 2000,
                  model_max_training_dataset_size: int = 1000,
                  model_max_batch_size: int = 5000,
-                 ls_acq_name: str = 'ei',
+                 acq_name: str = 'ei',
                  acq_optim_n_iter: int = 50,
                  acq_optim_n_restarts: int = 3,
                  acq_optim_max_n_perturb_num: int = 20,
@@ -74,6 +90,7 @@ class Casmopolitan(BoBase):
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu'),
                  ):
+
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'The Casmopolitan algorithm only supports continuous, discrete and nominal variables'
 
@@ -135,17 +152,17 @@ class Casmopolitan(BoBase):
             if tr_fail_tol is None:
                 tr_fail_tol = 40
 
+        self.model_cat_kernel_name = model_cat_kernel_name
+        self.model_numeric_kernel_name = model_numeric_kernel_name
+
         self.search_space = search_space
 
         # Initialise the model
         kernel = mixture_kernel_factory(search_space=search_space,
-                                        is_mixed=self.is_mixed,
-                                        is_numeric=self.is_numeric,
-                                        is_nominal=self.is_nominal,
-                                        numeric_kernel_name='mat52',
+                                        numeric_kernel_name=model_numeric_kernel_name,
                                         numeric_kernel_use_ard=model_num_kernel_ard,
                                         numeric_lengthscale_constraint=model_num_kernel_lengthscale_constr,
-                                        nominal_kernel_name='transformed_overlap',
+                                        nominal_kernel_name=model_cat_kernel_name,
                                         nominal_kernel_use_ard=model_cat_kernel_ard,
                                         nominal_lengthscale_constraint=model_cat_kernel_lengthscale_constr)
 
@@ -166,7 +183,7 @@ class Casmopolitan(BoBase):
                              device=device)
 
         # Initialise the acquisition function
-        acq_func = acq_factory(acq_func_name=ls_acq_name)
+        acq_func = acq_factory(acq_func_name=acq_name)
 
         # Initialise the acquisition optimizer
         acq_optim = InterleavedSearchAcqOptimizer(search_space=search_space,

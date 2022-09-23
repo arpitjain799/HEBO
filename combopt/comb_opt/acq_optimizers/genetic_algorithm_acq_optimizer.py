@@ -40,10 +40,6 @@ class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
         self.ga_pop_size = ga_pop_size
         self.ga_num_offsprings = ga_num_offsprings
 
-        self.is_numeric = True if self.search_space.num_cont > 0 or self.search_space.num_disc > 0 else False
-        self.is_nominal = True if self.search_space.num_nominal > 0 else False
-        self.is_mixed = self.is_nominal and self.is_numeric
-
         self.nominal_dims = self.search_space.nominal_dims
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
         # Dimensions of discrete variables in tensors containing only numeric variables
@@ -84,8 +80,6 @@ class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
                                                      search_space=self.search_space,
                                                      tr_manager=tr_manager,
                                                      n_points=self.ga_pop_size - 1,
-                                                     is_numeric=self.is_numeric,
-                                                     is_mixed=self.is_mixed,
                                                      numeric_dims=self.numeric_dims,
                                                      discrete_choices=self.discrete_choices,
                                                      model=None,
@@ -117,8 +111,6 @@ class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
                                                               search_space=self.search_space,
                                                               tr_manager=tr_manager,
                                                               n_points=1,
-                                                              is_numeric=self.is_numeric,
-                                                              is_mixed=self.is_mixed,
                                                               numeric_dims=self.numeric_dims,
                                                               discrete_choices=self.discrete_choices,
                                                               model=None,

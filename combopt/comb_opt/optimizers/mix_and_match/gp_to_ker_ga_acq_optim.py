@@ -135,15 +135,7 @@ class GpToGaAcqOptim(BoBase):
                 tr_fail_tol = 40
 
         # Initialise the model
-        self.is_numeric = True if self.search_space.num_cont > 0 or self.search_space.num_disc > 0 else False
-        self.is_nominal = True if self.search_space.num_nominal > 0 else False
-        self.is_mixed = self.is_nominal and self.is_numeric
-
-        # Initialise the model
         kernel = mixture_kernel_factory(search_space=search_space,
-                                        is_mixed=self.is_mixed,
-                                        is_numeric=self.is_numeric,
-                                        is_nominal=self.is_nominal,
                                         numeric_kernel_name='mat52',
                                         numeric_kernel_use_ard=model_num_kernel_ard,
                                         numeric_lengthscale_constraint=model_num_kernel_lengthscale_constr,

@@ -24,7 +24,11 @@ class SimulatedAnnealing(OptimizerBase):
 
     @property
     def name(self) -> str:
-        return 'Simulated Annealing'
+        if self.fixed_tr_manager is not None:
+            name = 'Tr-based Simulated Annealing'
+        else:
+            name = 'Simulated Annealing'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -48,9 +52,6 @@ class SimulatedAnnealing(OptimizerBase):
         self.fixed_tr_manager = fixed_tr_manager
         super(SimulatedAnnealing, self).__init__(search_space, dtype)
 
-        self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
-        self.is_nominal = True if search_space.num_nominal > 0 else False
-        self.is_mixed = True if self.is_numeric and self.is_nominal else False
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
         self.discrete_choices = get_discrete_choices(search_space)
         self.max_n_perturb_num = max_n_perturb_num
@@ -138,8 +139,6 @@ class SimulatedAnnealing(OptimizerBase):
                                                                       search_space=self.search_space,
                                                                       tr_manager=self.fixed_tr_manager,
                                                                       n_points=n_remaining,
-                                                                      is_numeric=self.is_numeric,
-                                                                      is_mixed=self.is_mixed,
                                                                       numeric_dims=self.numeric_dims,
                                                                       discrete_choices=self.discrete_choices,
                                                                       max_n_perturb_num=self.max_n_perturb_num,
@@ -271,8 +270,6 @@ class SimulatedAnnealing(OptimizerBase):
                                                                  search_space=self.search_space,
                                                                  tr_manager=self.fixed_tr_manager,
                                                                  n_points=1,
-                                                                 is_numeric=self.is_numeric,
-                                                                 is_mixed=self.is_mixed,
                                                                  numeric_dims=self.numeric_dims,
                                                                  discrete_choices=self.discrete_choices,
                                                                  max_n_perturb_num=self.max_n_perturb_num,

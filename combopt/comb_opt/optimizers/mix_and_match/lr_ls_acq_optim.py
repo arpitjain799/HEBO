@@ -9,27 +9,26 @@
 
 import copy
 import math
-import warnings
 from typing import Optional, Union
 
 import torch
 
 from comb_opt.acq_funcs import acq_factory
-from comb_opt.acq_optimizers.simulated_annealing_acq_optimizer import SimulatedAnnealingAcqOptimizer
+from comb_opt.acq_optimizers.local_search_acq_optimizer import LsAcqOptimizer
 from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
-from comb_opt.search_space.params.bool_param import BoolPara
 from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
+from comb_opt.utils.graph_utils import laplacian_eigen_decomposition
 
 
-class BOCS(BoBase):
+class LrLsAcqOptim(BoBase):
     @property
     def name(self) -> str:
         if self.use_tr:
             name = f'LR ({self.model_estimator}) - Tr-Based LS acq optim'
         else:
-            name = f'BOCS ({self.model_estimator})'
+            name = f'LR ({self.model_estimator}) - LS acq optim'
         return name
 
     def __init__(self,
@@ -41,9 +40,10 @@ class BOCS(BoBase):
                  model_b_prior: float = 1.,
                  model_sparse_horseshoe_threshold: float = 0.1,
                  model_n_gibbs: int = int(1e3),
-                 acq_optim_num_iter: int = 200,
-                 acq_optim_init_temp: int = 1,
-                 acq_optim_tolerance: int = 100,
+                 acq_optim_n_random_vertices: int = 20000,
+                 acq_optim_n_greedy_ascent_init: int = 20,
+                 acq_optim_n_spray: int = 10,
+                 acq_optim_max_n_ascent: float = float('inf'),
                  use_tr: bool = False,
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_nominal_radius: Optional[Union[int, float]] = None,
@@ -56,23 +56,11 @@ class BOCS(BoBase):
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
+        assert search_space.num_nominal == search_space.num_params, 'This Optimiser only supports nominal variables.'
 
-        assert search_space.num_nominal == search_space.num_params, 'BOCS only supports nominal variables.'
-
-        # Check if the problem is purely binary
-        binary_problem = True
-        for param_name in search_space.params:
-            binary_problem = binary_problem and isinstance(search_space.params[param_name], BoolPara)
-            if not binary_problem:
-                break
-
-        if binary_problem:
-            warning_message = 'This is the general form implementation of BOCS (see Appendix A of ' + \
-                              'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' + \
-                              'for purely binary problems. The differences are: (1) binary variables are ' + \
-                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' + \
-                              'in place of SDP.'
-            warnings.warn(warning_message, category=UserWarning)
+        assert model_estimator in ['mle', 'bayes', 'horseshoe', 'sparse_horseshoe']
+        self.model_estimator = model_estimator
+        self.use_tr = use_tr
 
         if use_tr:
 
@@ -111,8 +99,13 @@ class BOCS(BoBase):
             if tr_fail_tol is None:
                 tr_fail_tol = 40
 
+        assert model_estimator in ['mle', 'bayes', 'horseshoe', 'sparse_horseshoe']
         self.model_estimator = model_estimator
         self.use_tr = use_tr
+
+        # Eigen decomposition of the graph laplacian
+        n_vertices, adjacency_mat_list, fourier_freq_list, fourier_basis_list = laplacian_eigen_decomposition(
+            search_space)
 
         model = LinRegModel(search_space=search_space,
                             order=model_order,
@@ -126,11 +119,14 @@ class BOCS(BoBase):
 
         acq_func = acq_factory('thompson')
 
-        acq_optim = SimulatedAnnealingAcqOptimizer(search_space=search_space,
-                                                   sa_num_iter=acq_optim_num_iter,
-                                                   sa_init_temp=acq_optim_init_temp,
-                                                   sa_tolerance=acq_optim_tolerance,
-                                                   dtype=dtype)
+        acq_optim = LsAcqOptimizer(search_space=search_space,
+                                   adjacency_mat_list=adjacency_mat_list,
+                                   n_vertices=n_vertices,
+                                   n_random_vertices=acq_optim_n_random_vertices,
+                                   n_greedy_ascent_init=acq_optim_n_greedy_ascent_init,
+                                   n_spray=acq_optim_n_spray,
+                                   max_n_ascent=acq_optim_max_n_ascent,
+                                   dtype=dtype)
 
         if use_tr:
 
@@ -159,4 +155,4 @@ class BOCS(BoBase):
         else:
             tr_manager = None
 
-        super(BOCS, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)
+        super(LrLsAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)

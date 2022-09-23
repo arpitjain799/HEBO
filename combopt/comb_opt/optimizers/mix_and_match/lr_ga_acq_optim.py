@@ -9,27 +9,26 @@
 
 import copy
 import math
-import warnings
 from typing import Optional, Union
 
 import torch
 
 from comb_opt.acq_funcs import acq_factory
-from comb_opt.acq_optimizers.simulated_annealing_acq_optimizer import SimulatedAnnealingAcqOptimizer
+from comb_opt.acq_optimizers.genetic_algorithm_acq_optimizer import GeneticAlgoAcqOptimizer
 from comb_opt.models import LinRegModel
 from comb_opt.optimizers import BoBase
 from comb_opt.search_space import SearchSpace
-from comb_opt.search_space.params.bool_param import BoolPara
 from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
 
 
-class BOCS(BoBase):
+class LrGaAcqOptim(BoBase):
+
     @property
     def name(self) -> str:
         if self.use_tr:
-            name = f'LR ({self.model_estimator}) - Tr-Based LS acq optim'
+            name = f'LR ({self.model_estimator}) - Tr-Based GA acq optim'
         else:
-            name = f'BOCS ({self.model_estimator})'
+            name = f'LR ({self.model_estimator}) - GA acq optim'
         return name
 
     def __init__(self,
@@ -41,9 +40,12 @@ class BOCS(BoBase):
                  model_b_prior: float = 1.,
                  model_sparse_horseshoe_threshold: float = 0.1,
                  model_n_gibbs: int = int(1e3),
-                 acq_optim_num_iter: int = 200,
-                 acq_optim_init_temp: int = 1,
-                 acq_optim_tolerance: int = 100,
+                 acq_optim_ga_num_iter: int = 500,
+                 acq_optim_ga_pop_size: int = 100,
+                 acq_optim_ga_num_parents: int = 20,
+                 acq_optim_ga_num_elite: int = 10,
+                 acq_optim_ga_store_x: bool = False,
+                 acq_optim_ga_allow_repeating_x: bool = True,
                  use_tr: bool = False,
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_nominal_radius: Optional[Union[int, float]] = None,
@@ -57,22 +59,7 @@ class BOCS(BoBase):
                  device: torch.device = torch.device('cpu')
                  ):
 
-        assert search_space.num_nominal == search_space.num_params, 'BOCS only supports nominal variables.'
-
-        # Check if the problem is purely binary
-        binary_problem = True
-        for param_name in search_space.params:
-            binary_problem = binary_problem and isinstance(search_space.params[param_name], BoolPara)
-            if not binary_problem:
-                break
-
-        if binary_problem:
-            warning_message = 'This is the general form implementation of BOCS (see Appendix A of ' + \
-                              'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' + \
-                              'for purely binary problems. The differences are: (1) binary variables are ' + \
-                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' + \
-                              'in place of SDP.'
-            warnings.warn(warning_message, category=UserWarning)
+        assert search_space.num_nominal == search_space.num_params, 'This Optimiser only supports nominal variables.'
 
         if use_tr:
 
@@ -111,6 +98,7 @@ class BOCS(BoBase):
             if tr_fail_tol is None:
                 tr_fail_tol = 40
 
+        assert model_estimator in ['mle', 'bayes', 'horseshoe', 'sparse_horseshoe']
         self.model_estimator = model_estimator
         self.use_tr = use_tr
 
@@ -126,11 +114,15 @@ class BOCS(BoBase):
 
         acq_func = acq_factory('thompson')
 
-        acq_optim = SimulatedAnnealingAcqOptimizer(search_space=search_space,
-                                                   sa_num_iter=acq_optim_num_iter,
-                                                   sa_init_temp=acq_optim_init_temp,
-                                                   sa_tolerance=acq_optim_tolerance,
-                                                   dtype=dtype)
+        # Initialise the acquisition optimizer
+        acq_optim = GeneticAlgoAcqOptimizer(search_space=search_space,
+                                            ga_num_iter=acq_optim_ga_num_iter,
+                                            ga_pop_size=acq_optim_ga_pop_size,
+                                            cat_ga_num_parents=acq_optim_ga_num_parents,
+                                            cat_ga_num_elite=acq_optim_ga_num_elite,
+                                            cat_ga_store_x=acq_optim_ga_store_x,
+                                            cat_ga_allow_repeating_x=acq_optim_ga_allow_repeating_x,
+                                            dtype=dtype)
 
         if use_tr:
 
@@ -159,4 +151,4 @@ class BOCS(BoBase):
         else:
             tr_manager = None
 
-        super(BOCS, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)
+        super(LrGaAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager, dtype, device)

@@ -7,7 +7,7 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
 import warnings
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
@@ -25,7 +25,11 @@ class MultiArmedBandit(OptimizerBase):
 
     @property
     def name(self) -> str:
-        return 'Multi-Armed Bandit'
+        if self.tr_manager is not None:
+            name = 'Tr-based Multi-Armed Bandit'
+        else:
+            name = 'Multi-Armed Bandit'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -34,6 +38,7 @@ class MultiArmedBandit(OptimizerBase):
                  noisy_black_box: bool = False,
                  resample_tol: int = 500,
                  fixed_tr_manager: Optional[TrManagerBase] = None,
+                 fixed_tr_centre_nominal_dims: Optional[List] = None,
                  dtype: torch.dtype = torch.float32,
                  ):
 
@@ -63,9 +68,14 @@ class MultiArmedBandit(OptimizerBase):
             assert 'nominal' in fixed_tr_manager.radii, 'Trust Region manager must contain a radius for nominal variables'
             assert fixed_tr_manager.center is not None, 'Trust Region does not have a centre. Call tr_manager.set_center(center) to set one.'
         self.tr_manager = fixed_tr_manager
-        self.tr_center = None if fixed_tr_manager is None else fixed_tr_manager.center.unsqueeze(0)
+        self.fixed_tr_centre_nominal_dims = fixed_tr_centre_nominal_dims
+        self.tr_center = None if fixed_tr_manager is None else fixed_tr_manager.center.unsqueeze(0)[fixed_tr_centre_nominal_dims]
 
         super(MultiArmedBandit, self).__init__(search_space, dtype)
+
+    def update_fixed_tr_manager(self, fixed_tr_manager: Optional[TrManagerBase], nominal_dims: Optional[List]):
+        self.tr_manager = fixed_tr_manager
+        self.tr_center = None if fixed_tr_manager is None else fixed_tr_manager.center[self.fixed_tr_centre_nominal_dims].unsqueeze(0)
 
     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:
 
@@ -130,8 +140,6 @@ class MultiArmedBandit(OptimizerBase):
                                                                                   search_space=self.search_space,
                                                                                   tr_manager=self.tr_manager,
                                                                                   n_points=1,
-                                                                                  is_numeric=False,
-                                                                                  is_mixed=False,
                                                                                   numeric_dims=[],
                                                                                   discrete_choices=[],
                                                                                   max_n_perturb_num=0,

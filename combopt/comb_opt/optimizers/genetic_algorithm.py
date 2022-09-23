@@ -64,7 +64,11 @@ class PymooGeneticAlgorithm(OptimizerBase):
 
     @property
     def name(self) -> str:
-        return 'Genetic Algorithm'
+        if self.fixed_tr_manager is not None:
+            name = 'Tr-based Pymoo Genetic Algorithm'
+        else:
+            name = 'Pymoo Genetic Algorithm'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -81,6 +85,7 @@ class PymooGeneticAlgorithm(OptimizerBase):
         self.store_all = store_all
         self.pop_size = pop_size
         self.n_offsprings = n_offsprings
+        self.fixed_tr_manager = fixed_tr_manager
 
         self._pymoo_pop = []
         self._x_queue = pd.DataFrame(index=range(0), columns=self.search_space.df_col_names, dtype=float)
@@ -216,7 +221,11 @@ class CategoricalGeneticAlgorithm(OptimizerBase):
 
     @property
     def name(self) -> str:
-        return 'Genetic Algorithm'
+        if self.tr_manager is not None:
+            name = 'Tr-based Categorical Genetic Algorithm'
+        else:
+            name = 'Categorical Genetic Algorithm'
+        return name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -275,8 +284,6 @@ class CategoricalGeneticAlgorithm(OptimizerBase):
                                                                search_space=self.search_space,
                                                                tr_manager=self.tr_manager,
                                                                n_points=self.pop_size - 1,
-                                                               is_numeric=False,
-                                                               is_mixed=False,
                                                                numeric_dims=[],
                                                                discrete_choices=[],
                                                                max_n_perturb_num=0,
@@ -606,7 +613,7 @@ class GeneticAlgorithm(OptimizerBase):
 
     @property
     def name(self) -> str:
-        return 'Genetic Algorithm'
+        return self.backend_ga.name
 
     def __init__(self,
                  search_space: SearchSpace,

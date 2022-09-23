@@ -81,12 +81,12 @@ class MigSeqOpt(TaskBase):
             file.write(' '.join(str(idx) for idx in x))
 
         try:
-            print(self.path_to_executable, self.path_to_network, path_to_sequence, str(self.seq_len))
+            assert os.path.exists(self.path_to_network), f"No circuit: {self.path_to_network}"
             result = subprocess.run(
                 [self.path_to_executable, self.path_to_network, path_to_sequence, str(self.seq_len)], shell=False,
                 capture_output=True, text=True)
         except PermissionError:
-            print(f"\n\nRun \'chmod u+x {self.path_to_executable}\' in terminal\n\n")
+            raise PermissionError(f"\n\nRun \'chmod u+x {self.path_to_executable}\' in terminal\n\n")
 
         result = result.stdout.split(", ")[1:-1]
         init_size, init_depth, final_size, final_depth = int(result[0]), int(result[1]), int(result[2]), int(

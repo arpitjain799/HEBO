@@ -39,6 +39,7 @@ if __name__ == '__main__':
         'RNA Inverse Folding',
         '1ADQ_A Antibody Design',
         'EDA Sequence Optimization - Design sin - Ops basic - Pattern basic - Obj both',
+        'MIG Sequence Optimisation - sqrt - both'
         # 'Bayesmark task | Mod-lasso | DB diabetes | Metr-mae',
         # 'Bayesmark task | Mod-lasso | DB boston | Metr-mae',
         # 'Bayesmark task | Mod-linear | DB diabetes | Metr-mae',

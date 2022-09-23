@@ -14,12 +14,11 @@ import torch
 from gpytorch.kernels import ScaleKernel, RBFKernel, MaternKernel
 from torch.quasirandom import SobolEngine
 
-from comb_opt.models import ExactGPModel, ModelBase
+from comb_opt.models import ExactGPModel
 from comb_opt.models.gp.kernels import MixtureKernel, ConditionalTransformedOverlapKernel
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region import TrManagerBase
 from comb_opt.utils.discrete_vars_utils import round_discrete_vars
-from comb_opt.utils.general_utils import copy_tensor
 
 
 def get_num_tr_bounds(
@@ -91,15 +90,16 @@ def sample_numeric_and_nominal_within_tr(
         search_space: SearchSpace,
         tr_manager: TrManagerBase,
         n_points: int,
-        is_numeric: bool,
-        is_mixed: bool,
         numeric_dims: List[int],
-        discrete_choices: torch.Tensor,
+        discrete_choices: Union[torch.FloatTensor, List[torch.Tensor]],
         seq_dims: Optional[Union[np.ndarray, List[int]]] = None,
         max_n_perturb_num: int = 20,
         model: Optional[ExactGPModel] = None,
         return_numeric_bounds: bool = False,
 ):
+
+    is_numeric = search_space.num_numeric > 0
+    is_mixed = is_numeric and search_space.num_nominal > 0
     x_centre = x_centre.clone() * torch.ones((n_points, search_space.num_dims)).to(x_centre)
 
     if search_space.num_numeric > 0:

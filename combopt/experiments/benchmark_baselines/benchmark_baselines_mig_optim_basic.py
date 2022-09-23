@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
 
 from comb_opt.factory import task_factory
 from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, BOCS, BOSS, COMBO, \
-    Casmopolitan, BOiLS, PymooGeneticAlgorithm
+    Casmopolitan, BOiLS, PymooGeneticAlgorithm, MultiArmedBandit
 from comb_opt.utils.experiment_utils import run_experiment
 
 if __name__ == '__main__':
@@ -29,20 +29,22 @@ if __name__ == '__main__':
     bocs = BOCS(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boss = BOSS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
     combo = COMBO(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
-    casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
     boils = BOiLS(search_space=search_space, n_init=bo_n_init, model_max_batch_size=50, dtype=dtype, device=bo_device)
+    mab_optim = MultiArmedBandit(search_space=search_space, batch_size=1, max_n_iter=200, noisy_black_box=False,
+                                 dtype=dtype)
+    casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
 
     optimizers = [
-        # boss,
+        boss,
         # boils,
-        # casmopolitan,
+        casmopolitan,
         # combo,
-        # bocs,
-        # mab_optim,
+        bocs,
         # rs_optim,
-        # ls_optim,
+        ls_optim,
         # sa_optim,
-        # ga_optim
+        ga_optim,
+        # mab_optim
     ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

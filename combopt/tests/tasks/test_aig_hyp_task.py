@@ -32,8 +32,8 @@ from comb_opt.optimizers import RandomSearch
 if __name__ == "__main__":
     from comb_opt.factory import task_factory
 
-    task_kwargs = {'designs_group_id': "adder", "operator_space_id": "basic", "objective": "both",
-                   "seq_operators_pattern_id": "freePattern20"}
+    task_kwargs = {'designs_group_id': "sin", "operator_space_id": "basic", "objective": "both",
+                   "seq_operators_pattern_id": "basic_w_post_map"}
     dtype = torch.float32
     task, search_space = task_factory('aig_optimization_hyp', dtype, **task_kwargs)
     print(search_space.param_names)

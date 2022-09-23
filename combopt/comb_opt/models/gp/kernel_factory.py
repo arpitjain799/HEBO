@@ -83,7 +83,7 @@ def kernel_factory(kernel_name: str, active_dims: Optional[list] = None, use_ard
     return kernel
 
 
-def mixture_kernel_factory(search_space: SearchSpace, is_mixed: bool, is_numeric: bool, is_nominal: bool,
+def mixture_kernel_factory(search_space: SearchSpace,
                            numeric_kernel_name: Optional[str] = None,
                            numeric_kernel_use_ard: Optional[bool] = True,
                            numeric_lengthscale_constraint: Optional[Interval] = None,
@@ -91,7 +91,9 @@ def mixture_kernel_factory(search_space: SearchSpace, is_mixed: bool, is_numeric
                            nominal_kernel_use_ard: Optional[bool] = True,
                            nominal_lengthscale_constraint: Optional[Interval] = None,
                            ) -> Kernel:
-    assert is_mixed or (is_numeric or is_nominal)
+    is_numeric = search_space.num_numeric > 0
+    is_nominal = search_space.num_nominal > 0
+    is_mixed = is_numeric and is_nominal
 
     if is_mixed:
 

@@ -17,9 +17,9 @@ from comb_opt.optimizers.mix_and_match.gp_diff_ker_sa_acq_optim import GpDiffusi
 from comb_opt.optimizers.mix_and_match.gp_diff_ker_is_acq_optim import GpDiffusionTrLsAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_ssk_ker_sa_acq_optim import GpSskSaAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_ssk_ker_ls_acq_optim import GpSskLsAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_ga_acq_optim import LrSparseHsGaAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_is_acq_optim import LrSparseHsTrLsAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_ls_acq_optim import LrSparseHsExhaustiveLsAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_ga_acq_optim import LrSparseHsGaAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_is_acq_optim import LrSparseHsTrLsAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_ls_acq_optim import LrSparseHsExhaustiveLsAcqOptim
 
 if __name__ == '__main__':
     task_name = 'antibody_design'

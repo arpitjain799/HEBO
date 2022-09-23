@@ -22,17 +22,17 @@ from comb_opt.optimizers.multi_armed_bandit import MultiArmedBandit
 from comb_opt.search_space import SearchSpace
 from comb_opt.search_space.search_space import SearchSpaceSubSet
 from comb_opt.trust_region import TrManagerBase
+from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
+from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.discrete_vars_utils import round_discrete_vars
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
-from comb_opt.utils.data_buffer import DataBuffer
 
 
-class MabAcqOptimizer(AcqOptimizerBase):
+class MixedMabAcqOptimizer(AcqOptimizerBase):
 
     def __init__(self,
                  search_space: SearchSpace,
-                 acq_func: AcqBase,
                  batch_size: int = 1,
                  max_n_iter: int = 200,
                  mab_resample_tol: int = 500,
@@ -50,9 +50,8 @@ class MabAcqOptimizer(AcqOptimizerBase):
         assert n_cand >= n_restarts, \
             'The number of random candidates must be > number of points selected for gradient based optimisation'
 
-        super(MabAcqOptimizer, self).__init__(search_space, dtype)
+        super(MixedMabAcqOptimizer, self).__init__(search_space, dtype)
 
-        self.acq_func = acq_func
         self.n_cats = [int(ub + 1) for ub in search_space.nominal_ub]
         self.n_cand = n_cand
         self.n_restarts = n_restarts
@@ -72,6 +71,8 @@ class MabAcqOptimizer(AcqOptimizerBase):
                                     max_n_iter=max_n_iter,
                                     noisy_black_box=True,
                                     resample_tol=mab_resample_tol,
+                                    fixed_tr_manager=None,
+                                    fixed_tr_centre_nominal_dims=search_space.nominal_dims,
                                     dtype=dtype)
 
         self.numeric_dims = self.search_space.cont_dims + self.search_space.disc_dims
@@ -98,8 +99,7 @@ class MabAcqOptimizer(AcqOptimizerBase):
 
         assert (self.n_restarts == 0 and self.n_cand >= n_suggestions) or (self.n_restarts >= n_suggestions)
 
-        if tr_manager is not None:
-            raise RuntimeError("MAB does not support TR for now")  # TODO: handle TR
+        self.mab.update_fixed_tr_manager(tr_manager, self.search_space.nominal_dims)
 
         if self.batch_size != n_suggestions:
             warnings.warn('batch_size used for initialising the algorithm is not equal to n_suggestions received by' + \
@@ -114,7 +114,7 @@ class MabAcqOptimizer(AcqOptimizerBase):
         else:
             model = model
 
-        if self.search_space.num_nominal > 0 and self.search_space.num_cont > 0:
+        if self.search_space.num_nominal > 0 and (self.search_space.num_cont > 0 or self.search_space.num_disc):
 
             x_cat = self.mab_search_space.transform(self.mab.suggest(n_suggestions))
 
@@ -126,24 +126,32 @@ class MabAcqOptimizer(AcqOptimizerBase):
                     # Add the last point to the model and retrain it
                     add_hallucinations_and_retrain_model(model, x_next[-x_cat_counts[idx - 1].item()])
 
-                x_numeric_ = self.optimize_x_numeric(curr_x_cat, x_cat_counts[idx], model, acq_evaluate_kwargs)
+                x_numeric_ = self.optimize_x_numeric(curr_x_cat, x_cat_counts[idx], model, acq_func,
+                                                     acq_evaluate_kwargs, tr_manager)
                 x_cat_ = curr_x_cat * torch.ones((x_cat_counts[idx], curr_x_cat.shape[0]))
 
                 x_next = torch.cat((x_next, self.reconstruct_x(x_numeric_, x_cat_)))
 
         elif self.search_space.num_cont > 0:
-            x_next = torch.cat((x_next, self.optimize_x_numeric(torch.tensor([]), n_suggestions, acq_func)))
+            x_next = torch.cat((x_next, self.optimize_x_numeric(torch.tensor([]), n_suggestions, model, acq_func,
+                                                                acq_evaluate_kwargs, tr_manager)))
 
         elif self.search_space.num_nominal > 0:
-            x_next = torch.cat((x_next, self.sample_nominal(n_suggestions)))
+            x_next = self.mab_search_space.transform(self.mab.suggest(n_suggestions))
 
         return x_next
 
-    def optimize_x_numeric(self, x_cat: torch.Tensor,
+    def optimize_x_numeric(self,
+                           x_cat: torch.Tensor,
                            n_suggestions: int,
                            model: ModelBase,
+                           acq_func: AcqBase,
                            acq_evaluate_kwargs: dict,
+                           tr_manager: Optional[TrManagerBase],
                            ):
+
+        if self.search_space.num_nominal == 0:
+            x_cat = torch.zeros(size=(self.n_cand, 0), dtype=self.dtype)
 
         # Make a copy of the acquisition function if necessary to avoid changing original model parameters
         if n_suggestions > 1:
@@ -157,13 +165,32 @@ class MabAcqOptimizer(AcqOptimizerBase):
                 add_hallucinations_and_retrain_model(model, self.reconstruct_x(output[-1], x_cat))
 
             # Sample x_cont
-            x_numeric_cand = self.sobol_engine.draw(self.n_cand)  # Note that this assumes x in [0, 1]
+            if tr_manager is None:
+                x_numeric_cand = self.sobol_engine.draw(self.n_cand)  # Note that this assumes x in [0, 1]
+                numeric_lb = 0
+                numeric_ub = 1
+            else:
+                x_numeric_cand, numeric_lb, numeric_ub = sample_numeric_and_nominal_within_tr(
+                    x_centre=tr_manager.center,
+                    search_space=self.search_space,
+                    tr_manager=tr_manager,
+                    n_points=self.n_cand,
+                    numeric_dims=self.numeric_dims,
+                    discrete_choices=self.discrete_choices,
+                    max_n_perturb_num=20,
+                    model=None,
+                    return_numeric_bounds=True)
 
-            x_cand = self.reconstruct_x(x_numeric_cand, x_cat * torch.ones((self.n_cand, x_cat.shape[0])))
+                x_numeric_cand = x_numeric_cand[:, self.numeric_dims]
+
+            if self.search_space.num_nominal > 0:
+                x_cand = self.reconstruct_x(x_numeric_cand, x_cat * torch.ones((self.n_cand, x_cat.shape[0])))
+            else:
+                x_cand = self.reconstruct_x(x_numeric_cand, x_cat * torch.ones((self.n_cand, x_cat.shape[1])))
 
             # Evaluate all random samples
             with torch.no_grad():
-                acq = self.acq_func(x_cand, model, **acq_evaluate_kwargs)
+                acq = acq_func(x_cand, model, **acq_evaluate_kwargs)
 
             if self.n_restarts > 0:
 
@@ -182,12 +209,12 @@ class MabAcqOptimizer(AcqOptimizerBase):
                     elif self.cont_optimizer == 'sgd':
                         optimizer = torch.optim.SGD([{"params": x_numeric_}], lr=self.cont_lr)
                     else:
-                        raise NotImplementedError(f'optimizer {self.num_optimizer} is not implemented.')
+                        raise NotImplementedError(f'optimizer {self.cont_optimizer} is not implemented.')
 
                     for _ in range(self.cont_n_iter):
                         optimizer.zero_grad()
                         x_cand = self.reconstruct_x(x_numeric_, x_cat_)
-                        acq_x = self.acq_func(x_cand, model, **acq_evaluate_kwargs)
+                        acq_x = acq_func(x_cand, model, **acq_evaluate_kwargs)
 
                         try:
                             acq_x.backward()
@@ -198,8 +225,7 @@ class MabAcqOptimizer(AcqOptimizerBase):
                         with torch.no_grad():
                             x_numeric_.data = round_discrete_vars(x_numeric_, self.disc_dims_in_numeric,
                                                                   self.discrete_choices)
-                            x_numeric_.data = torch.clip(x_numeric_, min=0, max=1)
-
+                            x_numeric_.data = torch.clip(x_numeric_, min=numeric_lb, max=numeric_ub)
                     x_numeric_.requires_grad_(False)
 
                     if best_acq is None or acq_x < best_acq:
@@ -232,13 +258,14 @@ class MabAcqOptimizer(AcqOptimizerBase):
         """
         if len(data_buffer) < n_init:
             return
-        elif len(data_buffer) == n_init:
+        elif len(data_buffer) == n_init and self.mab_search_space.num_dims > 0:
             x_cat_init = self.mab_search_space.inverse_transform(data_buffer.x[:, self.cat_dims])
             y_init = data_buffer.y.cpu().numpy()
             self.mab.initialize(x_cat_init, y_init)
+        elif self.mab_search_space.num_dims > 0:
+            x_cat = self.mab_search_space.inverse_transform(x[:, self.cat_dims])
+            y = y.cpu().numpy()
+
+            self.mab.observe(x_cat, y)
+
             return
-
-        x_cat = self.mab_search_space.inverse_transform(x[:, self.cat_dims])
-        y = y.cpu().numpy()
-
-        self.mab.observe(x_cat, y)

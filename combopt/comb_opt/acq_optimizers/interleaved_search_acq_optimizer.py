@@ -43,10 +43,6 @@ class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
         assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'Interleaved Search only supports continuous, discrete and nominal variables'
 
-        self.is_numeric = True if search_space.num_cont > 0 or search_space.num_disc > 0 else False
-        self.is_nominal = True if search_space.num_nominal > 0 else False
-        self.is_mixed = True if self.is_numeric and self.is_nominal else False
-
         self.n_iter = n_iter
         self.n_restarts = n_restarts
         self.max_n_perturb_num = max_n_perturb_num
@@ -138,8 +134,6 @@ class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
                                                                           search_space=self.search_space,
                                                                           tr_manager=tr_manager,
                                                                           n_points=self.n_restarts,
-                                                                          is_numeric=self.is_numeric,
-                                                                          is_mixed=self.is_mixed,
                                                                           numeric_dims=self.numeric_dims,
                                                                           discrete_choices=self.discrete_choices,
                                                                           max_n_perturb_num=self.max_n_perturb_num,

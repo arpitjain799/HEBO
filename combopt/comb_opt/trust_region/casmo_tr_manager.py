@@ -162,8 +162,6 @@ class CasmopolitanTrManager(TrManagerBase):
                                                            search_space=self.search_space,
                                                            tr_manager=self,
                                                            n_points=self.n_init - 1,
-                                                           is_numeric=self.is_numeric,
-                                                           is_mixed=self.is_mixed,
                                                            numeric_dims=self.numeric_dims,
                                                            discrete_choices=self.discrete_choices,
                                                            max_n_perturb_num=self.max_n_perturb_num,

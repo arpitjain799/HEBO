@@ -226,11 +226,11 @@ class BoBase(OptimizerBase, ABC):
 
     @property
     def is_numeric(self) -> bool:
-        return True if (self.search_space.num_cont > 0 or self.search_space.num_disc > 0) else False
+        return self.search_space.num_numeric > 0
 
     @property
     def is_nominal(self) -> bool:
-        return True if self.search_space.num_nominal > 0 else False
+        return self.search_space.num_nominal > 0
 
     @property
     def is_mixed(self) -> bool:

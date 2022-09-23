@@ -22,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent)
+ROOT_PROJECT = str(Path(os.path.realpath(__file__)).parent.parent.parent)
 sys.path[0] = ROOT_PROJECT
 
 import torch
@@ -34,9 +34,9 @@ from comb_opt.utils.plotting_utils import plot_convergence_curve
 if __name__ == '__main__':
     n = 100
 
-    task_name_suffix = "2-nom-3 2-num 2-ord-3 2-int 2-nom-4"
+    task_name_suffix = "2-nom-3 2-int 2-nom-3 2-int 2-nom-4"
     task, search_space = task_factory('ackley', num_dims=[2, 2, 2, 2, 2],
-                                      variable_type=['nominal', 'num', 'ordinal', 'int', 'nominal'],
+                                      variable_type=['nominal', 'int', 'nominal', 'int', 'nominal'],
                                       num_categories=[3, None, 3, None, 4])
 
     optimizer = CoCaBO(search_space, n_init=2, device=torch.device('cpu'))

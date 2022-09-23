@@ -15,6 +15,6 @@ from comb_opt.optimizers.mix_and_match.gp_ssk_ker_sa_acq_optim import GpSskSaAcq
 from comb_opt.optimizers.mix_and_match.gp_to_ker_ls_acq_optim import GpToLsAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_to_ker_ga_acq_optim import GpToGaAcqOptim
 from comb_opt.optimizers.mix_and_match.gp_to_ker_sa_acq_optim import GpToSaAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_ga_acq_optim import LrSparseHsGaAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_ls_acq_optim import LrSparseHsExhaustiveLsAcqOptim
-from comb_opt.optimizers.mix_and_match.lr_sparse_hs_is_acq_optim import LrSparseHsTrLsAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_ga_acq_optim import LrGaAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_ls_acq_optim import LrLsAcqOptim
+from comb_opt.optimizers.mix_and_match.lr_is_acq_optim import LrIsAcqOptim
