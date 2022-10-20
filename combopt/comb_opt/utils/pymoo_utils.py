@@ -3,6 +3,9 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 import torch
+from pymoo.config import Config
+Config.warnings['not_compiled'] = False
+
 from pymoo.core.problem import Problem
 from pymoo.core.repair import Repair
 from pymoo.core.variable import Real, Integer, Choice, Binary, Variable

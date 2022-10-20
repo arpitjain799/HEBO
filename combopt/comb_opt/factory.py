@@ -208,9 +208,14 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
 
     elif task_name == 'antibody_design':
         if 'antigen' not in kwargs:
-            print('Target antigen not specified. Using antigen 1ADQ_A.')
-        task = CDRH3Design(antigen=kwargs.get('antigen', '1ADQ_A'), cdrh3_length=kwargs.get('cdrh3_length', 11),
-                           num_cpus=kwargs.get('num_cpus', 1), first_cpu=kwargs.get('first_cpu', 0))
+            print('Target antigen not specified. Using antigen 2DD8_S.')
+        task = CDRH3Design(
+            antigen=kwargs.get('antigen', '2DD8_S'),
+            cdrh3_length=kwargs.get('cdrh3_length', 11),
+            num_cpus=kwargs.get('num_cpus', 1),
+            first_cpu=kwargs.get('first_cpu', 0),
+            absolut_dir=kwargs.get('absolut_dir', None)
+        )
         search_space = search_space_factory('antibody_design', dtype, cdrh3_length=kwargs.get('cdrh3_length', 11))
 
     elif task_name == "rna_inverse_fold":

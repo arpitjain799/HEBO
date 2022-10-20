@@ -142,7 +142,7 @@ class CategoricalGeneticAlgoAcqOptimizer(AcqOptimizerBase):
         self.ga_allow_repeating_x = ga_allow_repeating_x
 
         assert self.search_space.num_nominal + self.search_space.num_ordinal == self.search_space.num_dims, \
-            'The Categorical GA acq optimiser currently only supports nominal and ordinal variables'
+            'The Categorical GA acq optimizer currently only supports nominal and ordinal variables'
 
     def optimize(self, x: torch.Tensor,
                  n_suggestions: int,

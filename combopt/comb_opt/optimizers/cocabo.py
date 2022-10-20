@@ -45,6 +45,8 @@ class CoCaBO(BoBase):
                 name = f'GP ({self.model_numeric_kernel_name}) - MAB acq optim'
             elif self.is_nominal:
                 name = f'GP ({self.model_cat_kernel_name}) - MAB acq optim'
+            else:
+                raise ValueError()
 
         return name
 
@@ -54,7 +56,7 @@ class CoCaBO(BoBase):
                  model_numeric_kernel_name: str = 'mat52',
                  model_num_kernel_ard: bool = True,
                  model_num_kernel_lengthscale_constr: Optional[Interval] = None,
-                 model_cat_kernel_name='transformed_overlap',
+                 model_cat_kernel_name='overlap',
                  model_cat_kernel_ard: bool = True,
                  model_cat_kernel_lengthscale_constr: Optional[Interval] = None,
                  model_noise_prior: Optional[Prior] = None,

@@ -25,7 +25,8 @@ if __name__ == '__main__':
     parser.add_argument("--final_plot", "-f", action="store_true",
                         help="Make the final plot style, Setting this to true will result in a plotting time ~60 s."
                              " Set to false when experimenting with the aesthetics of the plot")
-    parser.add_argument("--start_step", "-s", type=int, default=0, help="Plot performance of optimizers from step `start_step`")
+    parser.add_argument("--start_step", "-s", type=int, default=0,
+                        help="Plot performance of optimizers from step `start_step`")
 
     args = parser.parse_args()
 
@@ -43,9 +44,17 @@ if __name__ == '__main__':
         # 'Bayesmark task | Mod-lasso | DB diabetes | Metr-mae',
         # 'Bayesmark task | Mod-lasso | DB boston | Metr-mae',
         # 'Bayesmark task | Mod-linear | DB diabetes | Metr-mae',
-
         # 'Bayesmark task | Mod-linear | DB boston | Metr-mae',
     ]
+
+
+    def task_label(task_name: str) -> str:
+        if task_name == 'EDA Sequence Optimization - Design sin - Ops basic - Pattern basic - Obj both':
+            return "EDA Sequence Optimization"
+        elif task_name == 'MIG Sequence Optimisation - sqrt - both':
+            return 'MIG Sequence Optimisation'
+        return task_name
+
 
     method_names = [
         'BOCS',

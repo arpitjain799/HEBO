@@ -46,7 +46,7 @@ class COMBO(BoBase):
                  acq_optim_n_greedy_ascent_init: int = 20,
                  acq_optim_n_spray: int = 10,
                  acq_optim_max_n_ascent: float = float('inf'),
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_nominal_radius: Optional[Union[int, float]] = None,

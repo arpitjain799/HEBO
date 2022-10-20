@@ -115,6 +115,26 @@ class StrResyn2(BuildInSeq):
         return len(Resyn2.aux_sequence) + 1
 
 
+class DResyn2Speedup(BuildInSeq):
+    aux_sequence = dresyn2_seq
+
+    def __init__(self, design_file: str, lut_inputs: int):
+        """
+            balance; drw; drf; balance; drw; drw –z; balance; drf –z; drw –z; balance;
+            if -K ...; speedup; if -K ... -C 16 -F; speedup; if -K ... -C 16 -F; speedup; if -K ... -C 16 -F;
+        """
+
+        super().__init__(design_file=design_file)
+        assert lut_inputs == 4, f"Usually this is used with -K 4 and not -K {lut_inputs}"
+        self.sequence = ["strash;"] + self.aux_sequence + [f"if -K {lut_inputs}"]
+        for _ in range(3):
+            self.sequence += ["speedup", f"if -K {lut_inputs} -C 16 -F 2"]
+
+    @staticmethod
+    def seq_length() -> int:
+        return len(DResyn2Speedup.aux_sequence) + 4
+
+
 class InitDesign(BuildInSeq):
     aux_sequence = []
 
@@ -153,6 +173,7 @@ BUILD_IN_SEQ: Dict[str, Union[Type[InitDesign], Type[Resyn], Type[Resyn2]]] = di
     resyn2=Resyn2,
     strash_resyn2=StrResyn2,
     str_init=StrInitDesign,
+    dresyn2_speedup=DResyn2Speedup
 )
 
 
@@ -197,7 +218,11 @@ class RefObj:
         path_id += f'_{self.evaluator}'
         if self.n_eval_ref != 1:
             path_id += f"_n-eval-{self.n_eval_ref}"
-        return os.path.join(get_results_storage_path_root(), 'refs', self.ref_abc_seq, path_id, self.design_name)
+        try:
+            return os.path.join(get_results_storage_path_root(), 'refs', self.ref_abc_seq, path_id, self.design_name)
+        except Exception:
+            print(get_results_storage_path_root(), 'refs', self.ref_abc_seq, path_id, self.design_name)
+            raise
 
     def get_refs(self, ignore_existing: bool = False) -> Tuple[float, float, float]:
         if os.path.exists(os.path.join(self.ref_path(), 'refs.pkl')) and not ignore_existing:

@@ -59,7 +59,7 @@ class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
         self.inverse_mapping = [(self.numeric_dims + self.search_space.nominal_dims).index(i) for i in
                                 range(self.search_space.num_dims)]
 
-        # Determine the learning rate used to optimise numeric variables if needed
+        # Determine the learning rate used to optimize numeric variables if needed
         if len(self.numeric_dims) > 0:
             if num_lr is None:
                 if self.search_space.num_disc > 0:
@@ -194,6 +194,8 @@ class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
                             is_valid = True
                         else:
                             tol_ -= 1
+                        if tol_ < 0:
+                            break
                     if tol_ < 0:
                         break
 

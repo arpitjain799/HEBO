@@ -286,3 +286,14 @@ class SimulatedAnnealing(OptimizerBase):
             x_nominal_neighbour = x_nominal_neighbour.view(-1)
 
         return x_nominal_neighbour
+
+    def fill_field_after_pkl_load(self, search_space: SearchSpace, **kwargs):
+        """ As some elements are not pickled, need to reinstantiate them """
+        self.search_space = search_space
+
+    def __getstate__(self):
+        d = dict(self.__dict__)
+        to_remove = ["search_space"]  # fields to remove when pickling this object
+        for attr in to_remove:
+            del d[attr]
+        return d

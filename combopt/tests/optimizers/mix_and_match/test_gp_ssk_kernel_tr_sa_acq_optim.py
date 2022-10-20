@@ -1,10 +1,10 @@
 from comb_opt.factory import task_factory
-from comb_opt.optimizers.mix_and_match.gp_ssk_kernel_tr_ga_acq_optim import GpSskTrGaAcqOptim
+from comb_opt.optimizers.mix_and_match import GpSskSaAcqOptim
 
 if __name__ == '__main__':
     task, search_space = task_factory('ackley', num_dims=20, variable_type='nominal', num_categories=5)
 
-    optimizer = GpSskTrGaAcqOptim(search_space, 10, tr_verbose=True)
+    optimizer = GpSskSaAcqOptim(search_space, 10, use_tr=True, tr_verbose=True)
 
     n = 2000
     for i in range(n):

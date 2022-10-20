@@ -189,8 +189,8 @@ def get_design_name(design_filepath: str) -> str:
 
 
 def get_design_prop(seq: List[str], design_file: str, evaluator: str, print_stat_stages: Optional[np.ndarray],
-                    new_op: bool, obj_func: Optional[Callable[[float, float], float]] = None,
-                    verbose: bool = False) \
+                    new_op: bool, sweep: bool = False,
+                    obj_func: Optional[Callable[[float, float], float]] = None, verbose: bool = False) \
         -> Tuple[int, int, Dict[str, Any]]:
     """
      Get property of the design after applying sequence of operations
@@ -199,6 +199,7 @@ def get_design_prop(seq: List[str], design_file: str, evaluator: str, print_stat
         seq: sequence of operations
         design_file: path to the design
         evaluator: whether to use yosys-abc (`yosys`) or abc_py (`abcpy`) or compiled abc repo (`abc`)
+        sweep: add sweep before sequence
         verbose: verbosity level
         obj_func: a function taking lut and level as input and outputting some value (target in a minimisation task)
 
@@ -213,6 +214,8 @@ def get_design_prop(seq: List[str], design_file: str, evaluator: str, print_stat
             seq += ['&get -n -m;']
 
     abc_command = 'read ' + design_file + '; '
+    if sweep:
+        abc_command += "sweep; sweep -s;"
     abc_command += ' '.join(seq)
     if new_op:
         if "&ps" not in abc_command[-19:]:

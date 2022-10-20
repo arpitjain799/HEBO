@@ -12,6 +12,10 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
+
+from pymoo.config import Config
+Config.warnings['not_compiled'] = False
+
 from pymoo.algorithms.base.genetic import GeneticAlgorithm
 from pymoo.algorithms.soo.nonconvex.ga import FitnessSurvival
 from pymoo.algorithms.soo.nonconvex.ga import comp_by_cv_and_fitness
@@ -222,9 +226,9 @@ class CategoricalGeneticAlgorithm(OptimizerBase):
     @property
     def name(self) -> str:
         if self.tr_manager is not None:
-            name = 'Tr-based Categorical Genetic Algorithm'
+            name = 'Tr-based Genetic Algorithm'
         else:
-            name = 'Categorical Genetic Algorithm'
+            name = 'Genetic Algorithm'
         return name
 
     def __init__(self,
@@ -603,7 +607,7 @@ class CategoricalGeneticAlgorithm(OptimizerBase):
 
 class GeneticAlgorithm(OptimizerBase):
     """
-    A Genetic Algorithm (GA) optimiser that determines which exact GA algorithm to use based on the variable types in
+    A Genetic Algorithm (GA) optimizer that determines which exact GA algorithm to use based on the variable types in
     the search space. If the search space contains only nominal variables, an elitist GA algorithm will be used. If the
     search space contains any other variable type combinations, the Mixed Variable GA from pymoo will be used (see
     https://pymoo.org/customization/mixed.html). On purely combinatorial problems, the elitist GA algorithm can

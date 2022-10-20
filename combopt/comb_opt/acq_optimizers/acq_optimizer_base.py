@@ -43,7 +43,7 @@ class AcqOptimizerBase(ABC):
                  **kwargs
                  ) -> torch.Tensor:
         """
-        Function used to optimise the acquisition function. Should return a 2D tensor with shape
+        Function used to optimize the acquisition function. Should return a 2D tensor with shape
         (n_suggestions, n_dims), where n_dims is the dimensionality of x.
 
         If an optimizer does not support return batches of data, this can be handled by imposing with "assert

@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from gpytorch.kernels import ScaleKernel, MaternKernel
 
-from comb_opt.debugging.check_model_fit import plot_posterior
 from comb_opt.factory import task_factory
 from comb_opt.models.gp.exact_gp import ExactGPModel
 

@@ -58,7 +58,7 @@ class GpOIsAcqOptim(BoBase):
                  acq_optim_num_optimizer: str = 'sgd',
                  acq_optim_num_lr: Optional[float] = 1e-3,
                  acq_optim_nominal_tol: int = 100,
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_num_radius: Optional[Union[int, float]] = None,
@@ -142,7 +142,7 @@ class GpOIsAcqOptim(BoBase):
                                         numeric_kernel_name='mat52',
                                         numeric_kernel_use_ard=model_num_kernel_ard,
                                         numeric_lengthscale_constraint=model_num_kernel_lengthscale_constr,
-                                        nominal_kernel_name='transformed_overlap',
+                                        nominal_kernel_name='overlap',
                                         nominal_kernel_use_ard=model_cat_kernel_ard,
                                         nominal_lengthscale_constraint=model_cat_kernel_lengthscale_constr)
 

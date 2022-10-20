@@ -54,7 +54,7 @@ class GpOSaAcqOptim(BoBase):
                  acq_optim_num_iter: int = 200,
                  acq_optim_init_temp: int = 1,
                  acq_optim_tolerance: int = 100,
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_num_radius: Optional[Union[int, float]] = None,

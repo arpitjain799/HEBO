@@ -57,7 +57,7 @@ class GpToGaAcqOptim(BoBase):
                  acq_optim_ga_num_elite: int = 10,
                  acq_optim_ga_store_x: bool = False,
                  acq_optim_ga_allow_repeating_x: bool = True,
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_num_radius: Optional[Union[int, float]] = None,

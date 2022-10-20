@@ -28,14 +28,14 @@ from comb_opt.optimizers.mix_and_match.lr_is_acq_optim import LrIsAcqOptim
 from comb_opt.optimizers.mix_and_match.lr_ls_acq_optim import LrLsAcqOptim
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(add_help=True, description='BOF - Mix And Match - Pest')
+    parser = argparse.ArgumentParser(add_help=True, description='BOF - Mix And Match - RNA folding')
     parser.add_argument("--device_id", type=int, default=0, help="Cuda device id (cpu is used if id is negative)")
     parser.add_argument("--use_tr", action="store_true", help="Whether to use Trust-Region based methods")
 
     args = parser.parse_args()
 
-    task_name = 'pest'
-    task_kwargs = {}
+    task_name = 'rna_inverse_fold'
+    task_kwargs = {'target': 65}
     dtype = torch.float32
 
     task, search_space = task_factory(task_name, dtype, **task_kwargs)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     optimizers = [
         # gp_ssk_sa,
-        gp_ssk_ls,
+        # gp_ssk_ls,
         # gp_diffusion_ga,
         # gp_diffusion_sa,
         gp_diffusion_is,
@@ -106,11 +106,11 @@ if __name__ == '__main__':
     ]
 
     optional_opts = [
-        # gp_to_is,
-        gp_diffusion_ls,
-        lr_sparse_hs_sa,
-        gp_ssk_ga,
-        # gp_ssk_is,
+        gp_to_is,
+        # gp_diffusion_ls,
+        # lr_sparse_hs_sa,
+        # gp_ssk_ga,
+        gp_ssk_is,
     ]
 
     for opt in optional_opts:

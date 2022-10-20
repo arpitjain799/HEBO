@@ -461,7 +461,7 @@ class ComboGPModel(ModelBase):
         self.gram_mat_update(constmean, log_amp, log_beta, log_likelihood_noise)
 
         eye_mat = torch.diag(self.gram_mat.new_ones(self.gram_mat.size(0)))
-        for jitter_const in [0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]:
+        for jitter_const in [0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2]:
             chol_jitter = torch.trace(self.gram_mat).item() * jitter_const
             try:
                 # cholesky is lower triangular matrix

@@ -1,5 +1,5 @@
 # Comes from BOiLS
-
+import glob
 import os
 from typing import List, Dict
 
@@ -16,6 +16,10 @@ DESIGN_GROUPS: Dict[str, List[str]] = {
     'epfl_control': EPFL_CONTROL,
     'epfl_mtm': EPFL_MTM,
 }
+
+for file in glob.glob(f"{get_circuits_path_root()}/*.blif"):
+    circ_name = os.path.basename(file[:-5])
+    DESIGN_GROUPS[circ_name] = [circ_name]
 
 EPFLS = [EPFL_ARITHMETIC, EPFL_CONTROL, EPFL_MTM]
 for epfl in EPFLS:
@@ -41,7 +45,7 @@ def get_designs_path(designs_id: str, frac_part: str = None) -> List[str]:
             if designs_id in DESIGN_GROUPS_PERSO:
                 group = DESIGN_GROUPS_PERSO[designs_id]
         except ModuleNotFoundError:
-            pass
+            raise
     for design_id in group:
         designs_filepath.append(os.path.join(get_circuits_path_root(), f'{design_id}.blif'))
     if frac_part is None:

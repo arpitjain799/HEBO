@@ -9,6 +9,7 @@
 
 import os
 import subprocess
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -24,7 +25,8 @@ class CDRH3Design(TaskBase):
     def name(self) -> str:
         return f'{self.antigen} Antibody Design'
 
-    def __init__(self, antigen: str = '1ADQ_A', cdrh3_length: int = 11, num_cpus: int = 10, first_cpu: int = 0):
+    def __init__(self, antigen: str = '1ADQ_A', cdrh3_length: int = 11, num_cpus: int = 10, first_cpu: int = 0,
+                 absolut_dir: Optional[str] = None):
         super(CDRH3Design, self).__init__()
         self.num_cpus = num_cpus
         self.first_cpu = first_cpu
@@ -35,14 +37,18 @@ class CDRH3Design(TaskBase):
         self.amino_acid_to_idx = {aa: i for i, aa in enumerate(self.amino_acids)}
         self.idx_to_amino_acid = {value: key for key, value in self.amino_acid_to_idx.items()}
 
-        self.AbsolutNoLib_dir = get_AbsolutNoLib_dir()
+        self.AbsolutNoLib_dir = get_AbsolutNoLib_dir(absolut_dir)
         self.valid_antigens = get_valid_antigens(self.AbsolutNoLib_dir)
+        self.need_to_check_precomputed_antigen_structure = True
         assert antigen in self.valid_antigens, f'Specified antigen is not valid. Please choose of from: \n\n {self.valid_antigens}'
-        download_precomputed_antigen_structure(self.AbsolutNoLib_dir, self.antigen)
 
     def evaluate(self, x: pd.DataFrame) -> np.ndarray:
 
         assert os.path.exists(os.path.join(self.AbsolutNoLib_dir, 'antigen_data', f'{self.antigen}'))
+
+        if self.need_to_check_precomputed_antigen_structure:
+            download_precomputed_antigen_structure(self.AbsolutNoLib_dir, self.antigen)
+            self.need_to_check_precomputed_antigen_structure = False
 
         # Change working directory
         current_dir = os.getcwd()

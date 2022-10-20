@@ -42,11 +42,11 @@ if __name__ == '__main__':
         'BOCS',
         'LR (Sparse HS) - GA acq optim',
         'LR (Sparse HS) - LS acq optim',
-        'LR (Sparse HS) - TR-based LS acq optim'
+        'LR (Sparse HS) - Tr-based LS acq optim'
         'COMBO',
         'GP (Diffusion) - GA acq optim',
         'GP (Diffusion) - SA acq optim',
-        'GP (Diffusion) - TR-based LS acq optim'
+        'GP (Diffusion) - Tr-based LS acq optim'
         'Casmopolitan',
         'GP (TO) - GA acq optim',
         'GP (TO) - SA acq optim',

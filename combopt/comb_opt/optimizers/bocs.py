@@ -27,7 +27,9 @@ class BOCS(BoBase):
     @property
     def name(self) -> str:
         if self.use_tr:
-            name = f'LR ({self.model_estimator}) - Tr-Based LS acq optim'
+            name = f'LR ({self.model_estimator}) - Tr-Based SA acq optim'
+        elif self.model_estimator == "sparse_horseshoe":  # Standard BOCS
+            name = "BOCS"
         else:
             name = f'BOCS ({self.model_estimator})'
         return name
@@ -70,7 +72,7 @@ class BOCS(BoBase):
             warning_message = 'This is the general form implementation of BOCS (see Appendix A of ' + \
                               'https://arxiv.org/abs/1806.08838), which differs from the standard implementation ' + \
                               'for purely binary problems. The differences are: (1) binary variables are ' + \
-                              'represented by their one hot encoding, and (2) SA is used to optimise the acquisition' + \
+                              'represented by their one hot encoding, and (2) SA is used to optimize the acquisition' + \
                               'in place of SDP.'
             warnings.warn(warning_message, category=UserWarning)
 

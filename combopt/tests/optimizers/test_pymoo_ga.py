@@ -32,7 +32,7 @@ import numpy as np
 import torch
 
 from comb_opt.factory import task_factory
-from comb_opt.optimizers.genetic_algorithm import PymooGeneticAlgorithm, NominalGeneticAlgorithm
+from comb_opt.optimizers.genetic_algorithm import PymooGeneticAlgorithm, CategoricalGeneticAlgorithm
 
 
 def print_results(our_results, our_time, pymoo_results, pymoo_time, pop_size, num_iter, num_dims, num_categories,
@@ -83,7 +83,7 @@ if __name__ == '__main__':
             pymoo_optimizer = PymooGeneticAlgorithm(search_space, pop_size, tournament_selection=tournament_selection)
             pymoo_optimizer.set_x_init(x_init)
 
-            our_optimizer = NominalGeneticAlgorithm(search_space)
+            our_optimizer = CategoricalGeneticAlgorithm(search_space)
             our_optimizer.set_x_init(x_init)
 
             start = time.time()

@@ -34,32 +34,35 @@ def get_valid_antigens(AbsolutNoLib_dir: str):
     return antigens
 
 
-def get_AbsolutNoLib_dir() -> str:
-    path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'path_to_AbsolutNoLib.txt')
-    try:
-        f = open(path, "r")
-        AbsolutNoLib_dir = f.readlines()[0]
-        if AbsolutNoLib_dir[-1] == '\n':
-            AbsolutNoLib_dir = AbsolutNoLib_dir[:-1]
-        if AbsolutNoLib_dir.split('/')[-1] == 'AbsolutNoLib':
-            AbsolutNoLib_dir = os.path.join('/', *AbsolutNoLib_dir.split('/')[:-1])
-        f.close()
+def get_AbsolutNoLib_dir(path_to_AbsolutNoLib: Optional[str] = None) -> str:
+    if path_to_AbsolutNoLib is None:
+        path = os.path.join(pathlib.Path(__file__).parent.resolve(), 'path_to_AbsolutNoLib.txt')
+        try:
+            f = open(path, "r")
+            AbsolutNoLib_dir = f.readlines()[0]
+            if AbsolutNoLib_dir[-1] == '\n':
+                AbsolutNoLib_dir = AbsolutNoLib_dir[:-1]
+            f.close()
 
-        assert os.path.exists(
-            os.path.join(AbsolutNoLib_dir,
-                         'AbsolutNoLib')), f'AbsolutNoLib can\'t be found in provided directory {AbsolutNoLib_dir},' \
-                                           f' check path specified in {path}'
-        return AbsolutNoLib_dir
+        except FileNotFoundError as _:
+            abs_path_to_absolut_no_lib = '/my/absolute/path/to/AbsolutNoLib'
+            error_message = f'\n\n------ Friendly first run error message ------\n\n' \
+                            f'File {path} not found. \n\n' \
+                            f'   --> Please create it and fill it with one line describing the absolute path to the ' \
+                            f'AbsulutNoLib executable e.g. by running\n' \
+                            f"\techo '{abs_path_to_absolut_no_lib}' > {path}\n" \
+                            f'\n and then rerun your program.'
+            raise FileNotFoundError(error_message)
+    else:
+        AbsolutNoLib_dir = path_to_AbsolutNoLib
+    if AbsolutNoLib_dir.split('/')[-1] == 'AbsolutNoLib':
+        AbsolutNoLib_dir = os.path.join('/', *AbsolutNoLib_dir.split('/')[:-1])
 
-    except FileNotFoundError as _:
-        abs_path_to_absolut_no_lib = '/my/absolute/path/to/AbsolutNoLib'
-        error_message = f'\n\n------ Friendly first run error message ------\n\n' \
-                        f'File {path} not found. \n\n' \
-                        f'   --> Please create it and fill it with one line describing the absolute path to the ' \
-                        f'AbsulutNoLib executable e.g. by running\n' \
-                        f"\techo '{abs_path_to_absolut_no_lib}' > {path}\n" \
-                        f'\n and then rerun your program.'
-        raise FileNotFoundError(error_message)
+    assert os.path.exists(
+        os.path.join(AbsolutNoLib_dir,
+                     'AbsolutNoLib')), f'AbsolutNoLib can\'t be found in provided directory {AbsolutNoLib_dir},' \
+                                       f' check path specified in {path_to_AbsolutNoLib}'
+    return AbsolutNoLib_dir
 
 
 def download_precomputed_antigen_structure(AbsolutNoLib_dir: str, antigen: str, num_cpus: Optional[int] = 1,
@@ -85,10 +88,14 @@ def download_precomputed_antigen_structure(AbsolutNoLib_dir: str, antigen: str, 
 
     sequences = []
 
-    with open(f'TempCDR3_{antigen}.txt', 'w') as f:
-        line = f"{1}\t{seq}\n"
-        f.write(line)
-        sequences.append(seq)
+    try:
+        with open(f'TempCDR3_{antigen}.txt', 'w') as f:
+            line = f"{1}\t{seq}\n"
+            f.write(line)
+            sequences.append(seq)
+    except PermissionError:
+        print(os.getcwd())
+        raise
 
     repertoire_output = subprocess.run(absolut_run_command, capture_output=True, text=True)
 

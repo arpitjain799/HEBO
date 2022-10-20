@@ -22,7 +22,7 @@ from comb_opt.trust_region.casmo_tr_manager import CasmopolitanTrManager
 from comb_opt.utils.graph_utils import laplacian_eigen_decomposition
 
 
-class GpDiffusionTrLsAcqOptim(BoBase):
+class GpDiffusionIsAcqOptim(BoBase):
 
     @property
     def name(self) -> str:
@@ -48,7 +48,7 @@ class GpDiffusionTrLsAcqOptim(BoBase):
                  acq_optim_num_optimizer: str = 'sgd',
                  acq_optim_num_lr: Optional[float] = 1e-3,
                  acq_optim_nominal_tol: int = 100,
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_nominal_radius: Optional[Union[int, float]] = None,
@@ -168,6 +168,6 @@ class GpDiffusionTrLsAcqOptim(BoBase):
 
         self.use_tr = use_tr
 
-        super(GpDiffusionTrLsAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager,
+        super(GpDiffusionIsAcqOptim, self).__init__(search_space, n_init, model, acq_func, acq_optim, tr_manager,
                                                       dtype,
                                                       device)

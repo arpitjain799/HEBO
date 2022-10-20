@@ -16,7 +16,8 @@ Download all submodules
 
 > git submodule update --init --recursive
 
-[Optional] If you plan to use the Antibody design task, install AbsolutNoLib by following the instructions from https://github.com/csi-greifflab/Absolut
+[Optional] If you plan to use the Antibody design task, install AbsolutNoLib by following the instructions
+from https://github.com/csi-greifflab/Absolut
 
 Create a virtual environment and activate it
 
@@ -42,7 +43,7 @@ Install the package itself
 - Random TSP
 
 ### Real-world
-- Antibody Design (Needs to download `Absolut!` ~ 39GB)  #TODO: indicate how to install absolute
+- Antibody Design (Needs to download `Absolut!`)
 - RNA Inverse Folding
 - EDA Sequence Optimisation (AIG sequence optimisation)
 - EDA Sequence and Parameter Optimisation (AIG sequence and parameter optimisation)
