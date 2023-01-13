@@ -17,9 +17,15 @@ from comb_opt.optimizers.simulated_annealing import SimulatedAnnealing
 from comb_opt.search_space import SearchSpace
 from comb_opt.trust_region import TrManagerBase
 from comb_opt.utils.data_buffer import DataBuffer
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class SimulatedAnnealingAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[4]
+
+    @staticmethod
+    def get_color_1():
+        return SimulatedAnnealingAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -35,8 +41,8 @@ class SimulatedAnnealingAcqOptimizer(AcqOptimizerBase):
 
         super(SimulatedAnnealingAcqOptimizer, self).__init__(search_space, dtype)
 
-        assert search_space.num_nominal == search_space.num_params, \
-            'Simulated Annealing is currently implemented for nominal variables only'
+        assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
+            'Simulated Annealing is currently implemented for nominal, integer and continuous variables only'
 
     def optimize(self,
                  x: torch.Tensor,

@@ -44,11 +44,11 @@ class CDRH3Design(TaskBase):
 
     def evaluate(self, x: pd.DataFrame) -> np.ndarray:
 
-        assert os.path.exists(os.path.join(self.AbsolutNoLib_dir, 'antigen_data', f'{self.antigen}'))
-
         if self.need_to_check_precomputed_antigen_structure:
             download_precomputed_antigen_structure(self.AbsolutNoLib_dir, self.antigen)
             self.need_to_check_precomputed_antigen_structure = False
+
+        assert os.path.exists(os.path.join(self.AbsolutNoLib_dir, 'antigen_data', f'{self.antigen}'))
 
         # Change working directory
         current_dir = os.getcwd()

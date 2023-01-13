@@ -69,8 +69,7 @@ def download_precomputed_antigen_structure(AbsolutNoLib_dir: str, antigen: str, 
                                            first_cpu: Optional[int] = 0):
     print('Checking if antigen precomputed structures are downloaded ... ')
 
-    if not os.path.exists(os.path.join(AbsolutNoLib_dir, 'antigen_data', f'{antigen}')):
-        os.makedirs(os.path.join(AbsolutNoLib_dir, 'antigen_data', f'{antigen}'))
+    os.makedirs(os.path.join(AbsolutNoLib_dir, 'antigen_data', f'{antigen}'), exist_ok=True)
 
     assert (num_cpus is not None and first_cpu is not None) or (
             isinstance(num_cpus, int) and isinstance(first_cpu, int))
@@ -113,7 +112,7 @@ def download_precomputed_antigen_structure(AbsolutNoLib_dir: str, antigen: str, 
                               filename
 
         # Download the zip file
-        print(f'Downloading precomputed {antigen} structure ...')
+        print(f'Downloading precomputed {antigen} structure ... {fixed_download_link}.zip')
         r = requests.get(fixed_download_link + '.zip', stream=True)
         assert r.ok, 'Download unsuccessful...'
         z = zipfile.ZipFile(BytesIO(r.content))

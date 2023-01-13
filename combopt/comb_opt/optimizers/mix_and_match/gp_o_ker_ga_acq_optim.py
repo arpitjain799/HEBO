@@ -73,7 +73,7 @@ class GpOGaAcqOptim(BoBase):
                  dtype: torch.dtype = torch.float32,
                  device: torch.device = torch.device('cpu')
                  ):
-        assert search_space.num_nominal + search_space.num_ordinal == search_space.num_params, \
+        assert search_space.num_cont + search_space.num_disc + search_space.num_nominal == search_space.num_dims, \
             'This Optimiser only supports nominal and ordinal variables.'
 
         if use_tr:

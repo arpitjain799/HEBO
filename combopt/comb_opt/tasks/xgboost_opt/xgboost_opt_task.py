@@ -6,12 +6,12 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-from sklearn import model_selection, metrics, datasets
 import xgboost
+from sklearn import model_selection, metrics, datasets
 from sklearn.utils import Bunch
 
 from comb_opt.tasks import TaskBase
-from comb_opt.utils.general_utils import load_w_pickle, save_w_pickle
+from comb_opt.utils.general_utils import load_w_pickle, save_w_pickle, safe_load_w_pickle
 
 
 class XGBoostTask(TaskBase):
@@ -80,7 +80,7 @@ class XGBoostTask(TaskBase):
 
         results_path = self.results_path()
         if os.path.exists(results_path):
-            evaluations = load_w_pickle(results_path)
+            evaluations = safe_load_w_pickle(results_path)
             if str(x_dict) in evaluations:
                 return evaluations[str(x_dict)]
 

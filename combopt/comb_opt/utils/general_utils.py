@@ -20,7 +20,6 @@ import matplotlib
 matplotlib.use('Agg')
 
 import torch
-# import yaml
 
 from typing import Optional, List, Union, Tuple
 
@@ -94,14 +93,16 @@ def load_w_pickle(path: str, filename: Optional[str] = None) -> Any:
         path = os.path.dirname(path)
     if len(filename) < 4 or filename[-4:] != '.pkl':
         filename += '.pkl'
-    with open(os.path.join(path, filename), 'rb') as f:
+    p = os.path.join(path, filename)
+    with open(p, 'rb') as f:
         try:
             return pickle.load(f)
         except EOFError as e:
-            raise e
+            raise Exception(f"EOFError with {p}")
         except UnicodeDecodeError as e:
-            p = os.path.join(path, filename)
             raise Exception(f"UnicodeDecodeError with {p}")
+        except pickle.UnpicklingError as e:
+            raise Exception(f"UnpicklingError with {p}")
 
 
 def safe_load_w_pickle(path: str, filename: Optional[str] = None, n_trials=3, time_sleep=2) -> Any:
@@ -238,8 +239,9 @@ def get_common_chunk_sizes(ys: List[np.ndarray]):
     return output
 
 
-def plot_mean_std(*args, n_std: Optional[int] = 1,
-                  ax: Optional[Axes] = None, alpha: float = .3,
+def plot_mean_std(*args, n_std: Optional[float] = 1,
+                  ax: Optional[Axes] = None, alpha: float = .3, errbar: bool = False,
+                  lb: Optional[Union[float, np.ndarray]], ub: Optional[Union[float, np.ndarray]],
                   **plot_mean_kwargs):
     """ Plot mean and std (with fill between) of sequential data Y of shape (n_trials, lenght_of_a_trial)
 
@@ -250,6 +252,9 @@ def plot_mean_std(*args, n_std: Optional[int] = 1,
         ax: axis on which to plot the curves
         color: color of the curve
         alpha: parameter for `fill_between`
+        errbar: use error bars instead of shaded area
+        lb: lower bound (to clamp uncertainty region)
+        ub: upper bound (to clamp uncertainty region)
 
     Returns:
         The axis.
@@ -272,9 +277,24 @@ def plot_mean_std(*args, n_std: Optional[int] = 1,
     if ax is None:
         ax = plt.subplot()
 
-    line_plot = ax.plot(X, mean, **plot_mean_kwargs)
+    if len(X) == 0:
+        return ax
 
-    if n_std > 0 and Y.shape[0] > 1:
-        ax.fill_between(X, mean - n_std * std, mean + n_std * std, alpha=alpha, color=line_plot[0].get_c())
+    if errbar:
+        n_errbars = min(10, len(std))
+        errbar_inds = len(std) // n_errbars
+        line_plot = ax.errorbar(X, mean, yerr= n_std * std, errorevery=errbar_inds,  **plot_mean_kwargs)
+    else:
+        line_plot = ax.plot(X, mean, **plot_mean_kwargs)
+
+        if n_std > 0 and Y.shape[0] > 1:
+            uncertainty_lb = mean - n_std * std
+            uncertainty_ub = mean + n_std * std
+            if lb is not None:
+                uncertainty_lb = np.maximum(uncertainty_lb, lb)
+            if ub is not None:
+                uncertainty_ub = np.minimum(uncertainty_ub, ub)
+
+            ax.fill_between(X, uncertainty_lb, uncertainty_ub, alpha=alpha, color=line_plot[0].get_c())
 
     return ax

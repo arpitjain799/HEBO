@@ -6,7 +6,7 @@
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE. See the MIT License for more details.
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -23,11 +23,12 @@ class Ackley(TaskBase):
     def name(self) -> str:
         return f'Ackley Function{self.task_name_suffix}'
 
-    def __init__(self, num_dims: int = 10, lb: float = -32.768, ub: float = 32.768, a: float = 20, b: float = 0.2,
+    def __init__(self, num_dims: int = 10, lb: Union[float, np.ndarray] = -32.768,
+                 ub: Union[float, np.ndarray] = 32.768, a: float = 20, b: float = 0.2,
                  c: float = 2 * np.pi, task_name_suffix: Optional[str] = None):
         assert isinstance(num_dims, int)
-        assert isinstance(lb, int) or isinstance(lb, float)
-        assert isinstance(ub, int) or isinstance(ub, float)
+        assert isinstance(lb, int) or isinstance(lb, float) or isinstance(lb, np.ndarray)
+        assert isinstance(ub, int) or isinstance(ub, float) or isinstance(ub, np.ndarray)
         assert isinstance(a, int) or isinstance(a, float)
         assert isinstance(b, int) or isinstance(b, float)
         assert isinstance(c, int) or isinstance(c, float)

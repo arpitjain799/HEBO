@@ -152,5 +152,6 @@ def default_sfu_params_factory(task_name: str, num_dims: int, task_name_suffix: 
 
     else:
         raise NotImplemented(f'Task {task_name} is not implemented')
-    params["task_name_suffix"] = task_name_suffix
+    if task_name_suffix is not None:
+        params["task_name_suffix"] = task_name_suffix
     return params

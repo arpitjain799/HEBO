@@ -24,9 +24,16 @@ from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
 from comb_opt.utils.graph_utils import cartesian_neighbors, cartesian_neighbors_center_attracted
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class LsAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[2]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return LsAcqOptimizer.color_1
+
     def __init__(self,
                  search_space: SearchSpace,
                  adjacency_mat_list: List[torch.FloatTensor],
@@ -108,6 +115,7 @@ class LsAcqOptimizer(AcqOptimizerBase):
         assert n_suggestions == 1, 'Greedy Ascent acquisition optimisation does not support n_suggestions > 1'
 
         device, dtype = model.device, model.dtype
+        tkwargs = dict(device=device, dtype=dtype)
 
         # Sample initial points
         if tr_manager:
@@ -123,9 +131,11 @@ class LsAcqOptimizer(AcqOptimizerBase):
                                                                                     model=model,
                                                                                     return_numeric_bounds=True)
         else:
-            x_random = self.search_space.transform(self.search_space.sample(self.n_random_vertices)).to(dtype)
+            x_random = self.search_space.transform(self.search_space.sample(self.n_random_vertices))
 
-        x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
+        x_random = x_random.to(**tkwargs)
+
+        x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(**tkwargs)
         shuffled_ind = list(range(x_neighbours.size(0)))
         np.random.shuffle(shuffled_ind)
         x_init_candidates = torch.cat(tuple([x_neighbours[shuffled_ind[:self.n_spray]], x_random]), dim=0)
@@ -212,9 +222,9 @@ class LsAcqOptimizer(AcqOptimizerBase):
                                                normalize=False) >= tr_manager.get_nominal_radius():
                 # To get a neighbour in the TR, need to select a category matching the center category
                 x_neighbours = cartesian_neighbors_center_attracted(x.long(), self.adjacency_mat_list,
-                                                                    x_center=tr_manager.center).to(dtype)
+                                                                    x_center=tr_manager.center).to(x)
             else:
-                x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(dtype)
+                x_neighbours = cartesian_neighbors(x.long(), self.adjacency_mat_list).to(x)
             with torch.no_grad():
                 acq_neighbours = acq_func(x_neighbours, model, **acq_evaluate_kwargs)
 

@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import sklearn
 from sklearn import datasets
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import NuSVR
 from sklearn.metrics import mean_squared_error
 
@@ -11,7 +13,8 @@ from comb_opt.tasks import TaskBase
 
 
 class SVMOptTask(TaskBase):
-    """ Tuning of sklearn SVM regression learner hyperparamters on the diabetes regression task """
+    """ Tuning of sklearn SVM regression learner hyperparamters on the california dataset
+     regression task """
 
     @property
     def name(self) -> str:
@@ -30,8 +33,8 @@ class SVMOptTask(TaskBase):
         """
 
         if self.x is None or self.y is None:
-            diabetes = datasets.load_diabetes()
-            self.x, self.y = diabetes['data'], diabetes['target']
+            dataset = datasets.fetch_california_housing()
+            self.x, self.y = dataset['data'][:506], dataset['target'][:506]
 
         evaluations = []
         for i in range(len(x)):
@@ -46,8 +49,11 @@ class SVMOptTask(TaskBase):
 
                 learner = NuSVR(kernel=svm_hyp.kernel, gamma=svm_hyp.gamma, shrinking=svm_hyp.shrinking,
                                 C=svm_hyp.C, tol=svm_hyp.tol, nu=svm_hyp.nu)
-                learner.fit(x_train, y_train)
-                y_pred = learner.predict(x_test)
+                learner = NuSVR(kernel=svm_hyp.kernel, gamma=svm_hyp.gamma, shrinking=svm_hyp.shrinking,
+                                C=svm_hyp.C, tol=svm_hyp.tol, nu=svm_hyp.nu, max_iter=1000000)
+                regr = make_pipeline(StandardScaler(), learner)
+                regr.fit(x_train, y_train)
+                y_pred = regr.predict(x_test)
                 scores.append(mean_squared_error(y_test, y_pred))
             evaluations.append(np.mean(scores))
 

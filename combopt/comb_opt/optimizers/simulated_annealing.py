@@ -18,9 +18,19 @@ from comb_opt.trust_region import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.distance_metrics import hamming_distance
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class SimulatedAnnealing(OptimizerBase):
+    color_1: str = COLORS_SNS_10[9]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return SimulatedAnnealing.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return SimulatedAnnealing.get_color_1()
 
     @property
     def name(self) -> str:
@@ -174,8 +184,12 @@ class SimulatedAnnealing(OptimizerBase):
                     clip_lb = 0
                     clip_ub = 1
                     if self.fixed_tr_manager:  # make sure neighbor is in TR
-                        clip_lb = max(0, self.fixed_tr_manager.center[dim_array] - self.fixed_tr_manager.radii['numeric'])
-                        clip_ub = min(1, self.fixed_tr_manager.center[dim_array] + self.fixed_tr_manager.radii['numeric'])
+                        clip_lb = torch.maximum(torch.zeros(len(dim_array)).to(neighbors),
+                                                self.fixed_tr_manager.center[dim_array] - self.fixed_tr_manager.radii[
+                                                    'numeric'])
+                        clip_ub = torch.minimum(torch.ones(len(dim_array)).to(neighbors),
+                                                self.fixed_tr_manager.center[dim_array] + self.fixed_tr_manager.radii[
+                                                    'numeric'])
                     neighbors[:, dim_array] = torch.clip(current_x[:, dim_array] + noise, clip_lb, clip_ub)
 
             x_next.iloc[idx: idx + n_remaining] = self.search_space.inverse_transform(neighbors)
@@ -249,7 +263,8 @@ class SimulatedAnnealing(OptimizerBase):
                         normalize=False) >= self.fixed_tr_manager.get_nominal_radius():
                     # choose a dim that won't suggest a neighbor out of the TR
                     var_idx = np.random.choice(
-                        [d for d in self.search_space.nominal_dims if x[d] != self.fixed_tr_manager.center[d]])
+                        [i for i, d in enumerate(self.search_space.nominal_dims) if
+                         x[i] != self.fixed_tr_manager.center[d]])
                 else:
                     var_idx = np.random.randint(low=0, high=self.search_space.num_nominal)
                 choices = [j for j in range(int(self.search_space.nominal_lb[var_idx]),
@@ -274,7 +289,7 @@ class SimulatedAnnealing(OptimizerBase):
                                                                  discrete_choices=self.discrete_choices,
                                                                  max_n_perturb_num=self.max_n_perturb_num,
                                                                  model=None,
-                                                                 return_numeric_bounds=False)
+                                                                 return_numeric_bounds=False)[0]
                     else:
                         x = self.search_space.transform(self.search_space.sample(1))[0]
                     done = True

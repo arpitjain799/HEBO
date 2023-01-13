@@ -41,7 +41,7 @@ if __name__ == '__main__':
     #                                   num_categories=[None, 21, None])
     task, search_space = task_factory('levy', torch.float32, num_dims=10, variable_type='nominal', num_categories=21)
 
-    optimizer = Casmopolitan(search_space, n_init=10, tr_fail_tol=4, model_num_epochs=10, use_tr=False,
+    optimizer = Casmopolitan(search_space, n_init=10, tr_fail_tol=4, model_num_epochs=10, use_tr=True,
                              device=torch.device('cpu'))
 
     for i in range(200):

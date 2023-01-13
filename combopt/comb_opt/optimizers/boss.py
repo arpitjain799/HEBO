@@ -35,6 +35,11 @@ class BOSS(BoBase):
             name = f'BOSS'
         return name
 
+    def get_name(self, no_alias: bool = False) -> str:
+        if no_alias and self.name == "BOSS":
+            return f'GP (SSK) - GA acq optim'
+        return self.name
+
     def __init__(self,
                  search_space: SearchSpace,
                  n_init: int,

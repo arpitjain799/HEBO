@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 
-def hamming_distance(x1, x2, normalize=True):
+def hamming_distance(x1, x2, normalize=False):
     if len(x1) == 0:
         assert len(x2) == 0
         return 0

@@ -32,6 +32,11 @@ class COMBO(BoBase):
             name = f'COMBO'
         return name
 
+    def get_name(self, no_alias: bool = False) -> str:
+        if no_alias and self.name == "COMBO":
+            return f'GP (Diffusion) - LS acq optim'
+        return self.name
+
     def __init__(self,
                  search_space: SearchSpace,
                  n_init: int,

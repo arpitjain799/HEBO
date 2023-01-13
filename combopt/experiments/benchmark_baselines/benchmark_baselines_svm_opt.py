@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     task, search_space = task_factory(task_name, dtype=dtype)
     bo_n_init = 20
-    bo_device = torch.device('cuda:0')
+    bo_device = torch.device('cuda:3')
     max_num_iter = 200
     random_seeds = [42, 43, 44, 45, 46]
 

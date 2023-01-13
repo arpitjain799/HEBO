@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent.parent))
@@ -18,8 +19,10 @@ if __name__ == '__main__':
     num_categories = [2, None]
     task_name_suffix = " 50-nom-2 3-num"
 
+    lb = np.zeros(53)
+    lb[-3:] = -1
     task_kwargs = dict(num_dims=num_dims, variable_type=variable_type, num_categories=num_categories,
-                       task_name_suffix=task_name_suffix, lb=-1, ub=1)
+                       task_name_suffix=task_name_suffix, lb=lb, ub=1)
 
     bo_n_init = 20
     bo_device = torch.device('cuda:1')
@@ -41,8 +44,8 @@ if __name__ == '__main__':
         ls_optim,
         sa_optim,
         ga_optim,
-        casmopolitan,
-        cocabo
+        # casmopolitan,
+        # cocabo
     ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

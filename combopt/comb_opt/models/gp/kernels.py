@@ -420,8 +420,8 @@ class ConditionalTransformedOverlapKernel(Kernel):
         >>> seq_indices = np.arange(3)
         >>> param_indices = np.arange(3, 8)
         >>> n_categories = 4
-        >>> map_cat_to_kernel_ind = torch.tensor([-2, 0, 1, -2])
-        >>> conditional_transf_cat_kern = ConditionalTransformedCategoricalKernel(
+        >>> map_cat_to_kernel_ind = torch.tensor([-1, 0, 1, -1])
+        >>> conditional_transf_cat_kern = ConditionalTransformedOverlapKernel(
         >>>     *hyp_kernels,
         >>>     seq_indices=seq_indices,
         >>>     param_indices=param_indices,
@@ -445,6 +445,8 @@ class ConditionalTransformedOverlapKernel(Kernel):
         """
         Args:
             hyp_kernels: list of kernels over the hyperparameters associated to each category
+                         (their active dims should correspond to the indices of the relevant hyperparamters in the
+                         vector of hyyperparameters extracted with param_indices)
             seq_indices: list of dimensions corresponding to the sequence, not to the hyperparameters
             param_indices: list of dimensions corresponding to the hyperparameters
             n_categories: total number of categories
@@ -455,7 +457,7 @@ class ConditionalTransformedOverlapKernel(Kernel):
         if not isinstance(map_cat_to_kernel_ind, torch.Tensor):
             map_cat_to_kernel_ind = torch.tensor(map_cat_to_kernel_ind, dtype=int)
         if len(map_cat_to_kernel_ind) == n_categories:
-            map_cat_to_kernel_ind = torch.concat(
+            map_cat_to_kernel_ind = torch.cat(
                 [map_cat_to_kernel_ind, -2 * torch.ones(1).to(map_cat_to_kernel_ind)]).to(
                 int)
         if ard_num_dims:
@@ -515,7 +517,7 @@ class ConditionalTransformedOverlapKernel(Kernel):
         if check_output:
             manual_out = self.manual_get_cond_diff_matrix(x1, x2, diag=diag, **params)
             assert torch.allclose(manual_out, cond_diff_matrix)
-            print("Check of condititional distance matrix passed!")
+            print("Check of conditional distance matrix passed!")
 
         def rbf(d, ard):
             if ard:

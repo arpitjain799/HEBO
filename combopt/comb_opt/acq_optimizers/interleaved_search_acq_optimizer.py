@@ -24,9 +24,15 @@ from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.discrete_vars_utils import round_discrete_vars
 from comb_opt.utils.distance_metrics import hamming_distance
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class InterleavedSearchAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[1]
+
+    @staticmethod
+    def get_color_1():
+        return InterleavedSearchAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,

@@ -21,19 +21,22 @@ from https://github.com/csi-greifflab/Absolut
 
 Create a virtual environment and activate it
 
-> conda create -n bof python=3.8
-> 
-> conda activate bof
+```shell
+conda create -n bof python=3.8
+conda activate bof
 
-Install pytorch 1.10.0 with cu113 by following instructions at https://pytorch.org/get-started/locally/
+#Install pytorch 1.10.0 with cuda by following instructions at https://pytorch.org/get-started/locally/
+pip install pytorch
 
-Install remaining requirements with 
+# Install remaining requirements with 
+pip install -r requirements.txt
 
-> pip install -r requirements.txt
+# Install the package itself
+pip install .
 
-Install the package itself
-
-> pip install .
+# To be able to run mig optimization task
+chmod u+x /home/rladmin/antoineg/Projects/combopt_release/comb_opt/tasks/mig_seq_opt/mig_task_executable
+```
 
 ## Implemented Tasks
 

@@ -61,7 +61,8 @@ class RandomRestartTrManager(TrManagerBase):
 
         self.succ_count = 0
         self.fail_count = 0
-        self.guided_restart_buffer = DataBuffer(self.search_space, 1, self.data_buffer.dtype)
+        self.guided_restart_buffer = DataBuffer(num_dims=self.search_space.num_dims, num_out=1,
+                                                dtype=self.data_buffer.dtype)
         assert self.is_numeric or self.search_space.num_nominal > 0
 
     def adjust_counts(self, y: torch.Tensor):
@@ -94,8 +95,7 @@ class RandomRestartTrManager(TrManagerBase):
             if self.verbose:
                 print(f"Shrinking trust region...")
 
-    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
-                       best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer, **kwargs) -> pd.DataFrame:
 
         if self.verbose:
             print("Algorithm is stuck in a local optimum. Triggering a guided restart.")

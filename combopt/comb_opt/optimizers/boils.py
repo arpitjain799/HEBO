@@ -29,11 +29,16 @@ class BOiLS(BoBase):
 
     @property
     def name(self) -> str:
-        if self.use_tr:
-            name = f'BOiLS'
-        else:
-            name = f'GP (SSK) - IS acq optim'
-        return name
+        return self.get_name(no_alias=False)
+
+    def get_name(self, no_alias: bool = False) -> str:
+        if not no_alias:
+            if self.use_tr:
+                return "BOiLS"
+
+        tr_prefix = "Tr - based " if self.use_tr else ""
+
+        return f'GP (SSK) - {tr_prefix}IS acq optim'
 
     def __init__(self,
                  search_space: SearchSpace,

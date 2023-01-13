@@ -34,6 +34,11 @@ class BOCS(BoBase):
             name = f'BOCS ({self.model_estimator})'
         return name
 
+    def get_name(self, no_alias: bool = False) -> str:
+        if no_alias:
+            return f'LR ({self.model_estimator}) - {"Tr-Based " if self.use_tr else ""}SA acq optim'
+        return self.name
+
     def __init__(self,
                  search_space: SearchSpace,
                  n_init: int,

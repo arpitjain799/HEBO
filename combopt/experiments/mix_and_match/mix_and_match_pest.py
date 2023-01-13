@@ -90,26 +90,27 @@ if __name__ == '__main__':
 
     optimizers = [
         # gp_ssk_sa,
-        gp_ssk_ls,
+        # gp_ssk_ls,
         # gp_diffusion_ga,
         # gp_diffusion_sa,
-        gp_diffusion_is,
+        # gp_diffusion_is,
         # gp_to_ga,
         # gp_to_sa,
+        gp_to_exhaustive_ls,
         # gp_o_ga,
         # gp_o_sa,
         # gp_o_ls,
-        gp_o_is,
+        # gp_o_is,
         # lr_sparse_hs_ga,
         # lr_sparse_hs_ls,
-        lr_sparse_hs_is
+        # lr_sparse_hs_is
     ]
 
     optional_opts = [
         # gp_to_is,
-        gp_diffusion_ls,
-        lr_sparse_hs_sa,
-        gp_ssk_ga,
+        # gp_diffusion_ls,
+        # lr_sparse_hs_sa,
+        # gp_ssk_ga,
         # gp_ssk_is,
     ]
 

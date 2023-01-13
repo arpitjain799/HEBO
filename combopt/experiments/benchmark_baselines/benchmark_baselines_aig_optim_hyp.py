@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -12,6 +13,10 @@ from comb_opt.optimizers import RandomSearch, LocalSearch, SimulatedAnnealing, C
 from comb_opt.utils.experiment_utils import run_experiment
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(add_help=True, description='BOF - Mix And Match - RNA folding')
+    parser.add_argument("--seeds", type=int, nargs="+", required=True, help="Seeds to run")
+    args = parser.parse_args()
+
     task_name = 'aig_optimization_hyp'
     task_kwargs = {'designs_group_id': "sin", "operator_space_id": "basic", "objective": "both",
                    "seq_operators_pattern_id": "basic_w_post_map"}
@@ -21,7 +26,7 @@ if __name__ == '__main__':
     bo_n_init = 20
     bo_device = torch.device('cuda:2')
     max_num_iter = 200
-    random_seeds = [42, 43, 44, 45, 46]
+    random_seeds = args.seeds
     rs_optim = RandomSearch(search_space=search_space, dtype=dtype)
     ls_optim = LocalSearch(search_space=search_space, dtype=dtype)
     sa_optim = SimulatedAnnealing(search_space=search_space, dtype=dtype)
@@ -31,11 +36,11 @@ if __name__ == '__main__':
 
     optimizers = [
         # casmopolitan,
-        cocabo,
+        # cocabo,
         # rs_optim,
         # ls_optim,
         # sa_optim,
-        # ga_optim,
+        ga_optim,
     ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

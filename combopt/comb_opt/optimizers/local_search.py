@@ -13,9 +13,19 @@ import torch
 
 from comb_opt.optimizers.optimizer_base import OptimizerBase
 from comb_opt.search_space import SearchSpace
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class LocalSearch(OptimizerBase):
+    color_1: str = COLORS_SNS_10[7]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return LocalSearch.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return LocalSearch.get_color_1()
 
     @property
     def name(self) -> str:

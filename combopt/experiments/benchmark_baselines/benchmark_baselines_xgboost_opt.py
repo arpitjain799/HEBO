@@ -30,12 +30,12 @@ if __name__ == '__main__':
     cocabo = CoCaBO(search_space=search_space, n_init=bo_n_init)
 
     optimizers = [
-        casmopolitan,
-        rs_optim,
-        ls_optim,
-        sa_optim,
+        # casmopolitan,
+        # rs_optim,
+        # ls_optim,
+        # sa_optim,
         ga_optim,
-        cocabo
+        # cocabo
     ]
 
     run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

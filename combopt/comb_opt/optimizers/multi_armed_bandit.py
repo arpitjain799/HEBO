@@ -19,9 +19,20 @@ from comb_opt.trust_region.tr_manager_base import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.dependant_rounding import DepRound
 from comb_opt.utils.distance_metrics import hamming_distance
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class MultiArmedBandit(OptimizerBase):
+
+    color_1: str = COLORS_SNS_10[6]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return MultiArmedBandit.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return MultiArmedBandit.get_color_1()
 
     @property
     def name(self) -> str:
@@ -42,7 +53,8 @@ class MultiArmedBandit(OptimizerBase):
                  dtype: torch.dtype = torch.float32,
                  ):
 
-        assert search_space.num_dims == search_space.num_nominal + search_space.num_ordinal, 'The Multi-armed bandit optimizer only supports nominal and ordinal variables.'
+        assert search_space.num_dims == search_space.num_nominal + search_space.num_ordinal, \
+            'The Multi-armed bandit optimizer only supports nominal and ordinal variables.'
 
         self.batch_size = batch_size
         self.max_n_iter = max_n_iter

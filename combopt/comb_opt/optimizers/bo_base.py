@@ -9,7 +9,7 @@
 
 import copy
 from abc import ABC
-from typing import Optional
+from typing import Optional, Dict
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,14 @@ from comb_opt.utils.model_utils import move_model_to_device
 
 
 class BoBase(OptimizerBase, ABC):
+
+    def get_linestyle_tr_based(self, non_tr_linestyle: str = "-", tr_linestyle: str = "--") -> str:
+        if self.tr_manager is None:
+            return non_tr_linestyle
+        return tr_linestyle
+
+    def get_color_acq_opt_based(self, color_dict: Optional[Dict[str, str]] = None) -> str:
+        return self.acq_optimizer.get_color_1()
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -110,9 +118,7 @@ class BoBase(OptimizerBase, ABC):
                     break
 
             if trigger_tr_reset:
-                self.x_init = self.tr_manager.suggest_new_tr(self.n_init,
-                                                             self.data_buffer,
-                                                             self.data_buffer.y_min)
+                self.x_init = self.tr_manager.suggest_new_tr(self.n_init, self.data_buffer)
 
         # Create a Dataframe that will store the candidates
         idx = 0

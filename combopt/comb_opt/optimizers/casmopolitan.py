@@ -28,24 +28,32 @@ class Casmopolitan(BoBase):
 
     @property
     def name(self) -> str:
-        if self.use_tr:
-            if self.model_numeric_kernel_name == 'mat52' and self.model_cat_kernel_name == 'transformed_overlap':
-                name = f'Casmopolitan'
-            else:
-                if self.is_mixed:
-                    name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - Tr-based IS acq optim'
-                elif self.is_numeric:
-                    name = f'GP ({self.model_numeric_kernel_name}) - Tr-based IS acq optim'
-                elif self.is_nominal:
-                    name = f'GP ({self.model_cat_kernel_name}) - Tr-based IS acq optim'
-        else:
-            if self.is_mixed:
-                name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - IS acq optim'
-            elif self.is_numeric:
-                name = f'GP ({self.model_numeric_kernel_name}) - IS acq optim'
-            elif self.is_nominal:
-                name = f'GP ({self.model_cat_kernel_name}) - IS acq optim'
+        return self.get_name(no_alias=False)
 
+    def get_name(self, no_alias: bool = False) -> str:
+
+        # Check the cases when Casmopolitan name applies
+        if not no_alias and self.use_tr:
+            if self.is_mixed and self.model_numeric_kernel_name == 'mat52' and\
+                    self.model_cat_kernel_name == 'transformed_overlap':
+                return "Casmopolitan"
+            if self.is_nominal and self.model_cat_kernel_name == 'transformed_overlap':
+                return "Casmopolitan"
+
+        model_cat_kernel_name = self.model_cat_kernel_name
+        if model_cat_kernel_name == "transformed_overlap":
+            model_cat_kernel_name = "TO"
+
+        tr_prefix = "Tr - based " if self.use_tr else ""
+
+        if self.is_mixed:
+            name = f'GP ({self.model_numeric_kernel_name} and {model_cat_kernel_name}) - {tr_prefix}IS acq optim'
+        elif self.is_numeric:
+            name = f'GP ({self.model_numeric_kernel_name}) - {tr_prefix}IS acq optim'
+        elif self.is_nominal:
+            name = f'GP ({model_cat_kernel_name}) - {tr_prefix}IS acq optim'
+        else:
+            raise ValueError()
         return name
 
     def __init__(self,

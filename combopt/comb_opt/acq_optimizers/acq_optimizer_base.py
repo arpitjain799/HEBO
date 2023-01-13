@@ -22,6 +22,13 @@ from comb_opt.utils.data_buffer import DataBuffer
 
 class AcqOptimizerBase(ABC):
 
+    color_1: str
+
+    @staticmethod
+    @abstractmethod
+    def get_color_1():
+        raise NotImplementedError()
+
     def __init__(self,
                  search_space: SearchSpace,
                  dtype: torch.dtype,

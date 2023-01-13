@@ -15,14 +15,12 @@ import torch
 from comb_opt.search_space import SearchSpace
 from comb_opt.tasks import TaskBase, RandomTSP, PestControl, default_sfu_params_factory, SFU_FUNCTIONS, CDRH3Design, \
     MigSeqOpt
-from comb_opt.tasks.rna_inverse_fold.rna_inverse_fold_task import RNAInverseFoldTask
-from comb_opt.tasks.rna_inverse_fold.utils import get_target_from_id, RNA_BASES
 
 SFU_SYNTHETIC_FUNC_NAMES = list(SFU_FUNCTIONS.keys())
 
 
 def _sfu_search_space_params_factory(variable_type: Union[str, List[str]], num_dims: Union[int, List[int]],
-                                     lb: Union[int, float], ub: Union[int, float],
+                                     lb: Union[float, np.ndarray], ub: Union[float, np.ndarray],
                                      num_categories: Optional[Union[int, List[int]]] = None) \
         -> List[Union[Dict[str, Union[Union[str, float, int], Any]], Dict[str, Union[Union[str, object], Any]], Dict[
             str, Union[str, float, int]], Dict[str, Union[str, object]]]]:
@@ -53,33 +51,48 @@ def _sfu_search_space_params_factory(variable_type: Union[str, List[str]], num_d
         for num in num_dims:
             assert isinstance(num, int)
 
-    assert isinstance(lb, int) or isinstance(lb, float)
-    assert isinstance(ub, int) or isinstance(ub, float)
-    assert lb < ub
+    assert isinstance(lb, np.ndarray) or isinstance(lb, (int, float))
+    assert isinstance(ub, np.ndarray) or isinstance(ub, (int, float))
+    assert np.all(lb < ub)
 
     params = []
     counter = 1
 
+    def get_bounds_i(ind: int):
+        if isinstance(lb, np.ndarray):
+            lb_i = lb[i]
+        else:
+            lb_i = lb
+        if isinstance(ub, np.ndarray):
+            ub_i = ub[i]
+        else:
+            ub_i = ub
+        return lb_i, ub_i
+
     if isinstance(variable_type, list):
         for i, var_type in enumerate(variable_type):
+            lb_i, ub_i = get_bounds_i(i)
+
             if var_type in ['num', 'int']:
                 for _ in range(num_dims[i]):
-                    params.append({'name': f'var_{counter}', 'type': var_type, 'lb': lb, 'ub': ub})
+                    params.append({'name': f'var_{counter}', 'type': var_type, 'lb': lb_i, 'ub': ub_i})
                     counter += 1
             elif var_type in ['nominal', 'ordinal']:
-                categories = np.linspace(lb, ub, num_categories[i]).tolist()
+                categories = np.linspace(lb_i, ub_i, num_categories[i]).tolist()
                 for _ in range(num_dims[i]):
                     params.append({'name': f'var_{counter}', 'type': var_type, 'categories': categories})
                     counter += 1
 
     else:
         if variable_type in ['num', 'int']:
-            for _ in range(num_dims):
-                params.append({'name': f'var_{counter}', 'type': variable_type, 'lb': lb, 'ub': ub})
+            for i in range(num_dims):
+                lb_i, ub_i = get_bounds_i(i)
+                params.append({'name': f'var_{counter}', 'type': variable_type, 'lb': lb_i, 'ub': ub_i})
                 counter += 1
         elif variable_type in ['nominal', 'ordinal']:
-            categories = np.linspace(lb, ub, num_categories).tolist()
-            for _ in range(num_dims):
+            for i in range(num_dims):
+                lb_i, ub_i = get_bounds_i(i)
+                categories = np.linspace(lb_i, ub_i, num_categories).tolist()
                 params.append({'name': f'var_{counter}', 'type': variable_type, 'categories': categories})
                 counter += 1
 
@@ -119,6 +132,7 @@ def search_space_factory(task_name: str, dtype: torch.dtype, **kwargs) -> Search
                   range(kwargs.get('cdrh3_length', 11))]
 
     elif task_name == "rna_inverse_fold":
+        from comb_opt.tasks.rna_inverse_fold.utils import get_target_from_id, RNA_BASES
         binary_mode = kwargs.get("binary_mode", 0)
 
         assert "target" in kwargs, "Need to provide a target structure (e.g. `(((...))).(..)..(....)...`)"
@@ -219,8 +233,10 @@ def task_factory(task_name: str, dtype: torch.dtype = torch.float32, **kwargs) -
         search_space = search_space_factory('antibody_design', dtype, cdrh3_length=kwargs.get('cdrh3_length', 11))
 
     elif task_name == "rna_inverse_fold":
+        from comb_opt.tasks.rna_inverse_fold.rna_inverse_fold_task import RNAInverseFoldTask
         target = kwargs.get("target", 23)
         if isinstance(target, int):
+            from comb_opt.tasks.rna_inverse_fold.utils import get_target_from_id
             target = get_target_from_id(target)
         binary_mode = kwargs.get("binary_mode", False)
         task = RNAInverseFoldTask(target=target, binary_mode=binary_mode)

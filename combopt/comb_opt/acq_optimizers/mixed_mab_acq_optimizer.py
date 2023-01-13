@@ -27,9 +27,15 @@ from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
 from comb_opt.utils.discrete_vars_utils import round_discrete_vars
 from comb_opt.utils.model_utils import add_hallucinations_and_retrain_model
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class MixedMabAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[3]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return MixedMabAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -61,7 +67,7 @@ class MixedMabAcqOptimizer(AcqOptimizerBase):
         self.batch_size = batch_size
 
         # Algorithm initialisation
-        if search_space.num_cont > 0:
+        if search_space.num_numeric > 0:
             seed = np.random.randint(int(1e6))
             self.sobol_engine = SobolEngine(search_space.num_numeric, scramble=True, seed=seed)
 
@@ -197,7 +203,7 @@ class MixedMabAcqOptimizer(AcqOptimizerBase):
                 x_cont_best = None
                 best_acq = None
 
-                x_local_cand = x_cand[acq.argsort()[:self.n_restarts]]
+                x_local_cand = x_cand[acq.argsort()[:self.n_restarts].detach().cpu().numpy()]
 
                 for x_ in x_local_cand:
 

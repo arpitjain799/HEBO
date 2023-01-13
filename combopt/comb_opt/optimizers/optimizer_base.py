@@ -20,10 +20,17 @@ from comb_opt.utils.data_buffer import DataBuffer
 
 class OptimizerBase(ABC):
 
+    @staticmethod
+    def get_linestyle() -> str:
+        return "-"
+
     @property
     @abstractmethod
     def name(self) -> str:
-        return 'Optimizer_name'
+        pass
+
+    def get_name(self, no_alias: bool = False) -> str:
+        return self.name
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -37,7 +44,7 @@ class OptimizerBase(ABC):
         self._best_x = None
         self.best_y = None
 
-        self.data_buffer = DataBuffer(self.search_space, 1, self.dtype)
+        self.data_buffer = DataBuffer(num_dims=self.search_space.num_dims, num_out=1, dtype=self.dtype)
 
     @abstractmethod
     def method_suggest(self, n_suggestions: int = 1) -> pd.DataFrame:

@@ -22,9 +22,15 @@ from comb_opt.trust_region.tr_manager_base import TrManagerBase
 from comb_opt.trust_region.tr_utils import sample_numeric_and_nominal_within_tr
 from comb_opt.utils.data_buffer import DataBuffer
 from comb_opt.utils.discrete_vars_utils import get_discrete_choices
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
 
 
 class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[0]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return GeneticAlgoAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -64,7 +70,7 @@ class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
                                    pop_size=self.ga_pop_size,
                                    n_offsprings=self.ga_num_offsprings,
                                    fixed_tr_manager=tr_manager,
-                                   store_all=True,
+                                   store_observations=True,
                                    dtype=self.dtype)
 
         x_init = pd.DataFrame(index=range(self.ga_pop_size), columns=self.search_space.df_col_names, dtype=float)
@@ -120,6 +126,11 @@ class PymooGeneticAlgoAcqOptimizer(AcqOptimizerBase):
 
 
 class CategoricalGeneticAlgoAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[0]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return GeneticAlgoAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,
@@ -200,6 +211,11 @@ class CategoricalGeneticAlgoAcqOptimizer(AcqOptimizerBase):
 
 
 class GeneticAlgoAcqOptimizer(AcqOptimizerBase):
+    color_1: str = COLORS_SNS_10[0]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return GeneticAlgoAcqOptimizer.color_1
 
     def __init__(self,
                  search_space: SearchSpace,

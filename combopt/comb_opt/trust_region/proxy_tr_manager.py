@@ -42,8 +42,7 @@ class ProxyTrManager(TrManagerBase):
         """
         self.set_center(self.data_buffer.x_min)
 
-    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
-                       best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer, **kwargs) -> pd.DataFrame:
         """
         Function used to suggest a new trust region centre and neighbouring points
 

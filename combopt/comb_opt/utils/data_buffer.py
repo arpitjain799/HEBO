@@ -12,14 +12,18 @@ from typing import Optional
 
 import torch
 
-from comb_opt.search_space import SearchSpace
-
 
 class DataBuffer(ABC):
 
-    def __init__(self, search_space: SearchSpace, num_out: int, dtype: torch.dtype):
+    def __init__(self, num_dims: int, num_out: int, dtype: torch.dtype):
+        """
+        Args:
+            num_dims: number of dimensions of the inputs stored in the data buffer
+            num_out:  number of dimensions of the outputs stored in the data buffer
+            dtype: type of the data
+        """
         super(DataBuffer, self).__init__()
-        self.num_dims = search_space.num_dims
+        self.num_dims = num_dims
         self.num_out = num_out
         self.dtype = dtype
 

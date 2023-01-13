@@ -19,9 +19,9 @@ if __name__ == '__main__':
     max_num_iter = 200
     random_seeds = [42, 43, 44, 45, 46]
 
-    for model_name in ["lasso", "linear"]:
-        for database_id in ["diabetes", "boston"]:
-            task_kwargs = {'model_name': model_name, "metric": "mae", "database_id": database_id}
+    for model_name in ["MLP-adam", "lasso", "linear"]:
+        for database_id in ["boston", "diabetes"]:
+            task_kwargs = {'model_name': model_name, "metric": "mse", "database_id": database_id}
 
             task, search_space = task_factory(task_name, dtype, **task_kwargs)
 
@@ -31,10 +31,10 @@ if __name__ == '__main__':
             casmopolitan = Casmopolitan(search_space=search_space, n_init=bo_n_init, dtype=dtype, device=bo_device)
 
             optimizers = [
-                casmopolitan,
+                # casmopolitan,
                 rs_optim,
-                ls_optim,
-                sa_optim,
+                # ls_optim,
+                # sa_optim,
             ]
 
             run_experiment(task=task, optimizers=optimizers, random_seeds=random_seeds, max_num_iter=max_num_iter,

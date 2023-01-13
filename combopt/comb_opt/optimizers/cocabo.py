@@ -28,25 +28,31 @@ class CoCaBO(BoBase):
 
     @property
     def name(self) -> str:
-        if self.use_tr:
-            if self.model_numeric_kernel_name == 'mat52' and self.model_cat_kernel_name == 'overlap':
-                name = f'CoCaBO'
-            else:
-                if self.is_mixed:
-                    name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - Tr-based MAB acq optim'
-                elif self.is_numeric:
-                    name = f'GP ({self.model_numeric_kernel_name}) - Tr-based MAB acq optim'
-                elif self.is_nominal:
-                    name = f'GP ({self.model_cat_kernel_name}) - Tr-based MAB acq optim'
+        return self.get_name(no_alias=False)
+
+    def get_name(self, no_alias: bool = False) -> str:
+        model_cat_kernel_name = self.model_cat_kernel_name
+        if self.model_cat_kernel_name == "overlap":
+            model_cat_kernel_name = "O"
+        elif self.model_cat_kernel_name == "transformed_overlap":
+            model_cat_kernel_name = "TO"
+
+        # Check if CoCaBO setting applies and if alias are allowed
+        if not no_alias and self.is_mixed and self.model_numeric_kernel_name == 'mat52' \
+                and self.model_cat_kernel_name == 'overlap' and not self.use_tr:
+            return f'CoCaBO'
+
+        tr_prefix = "Tr - based " if self.use_tr else ""
+
+        if self.is_mixed:
+            name = f'GP ({self.model_numeric_kernel_name} and {model_cat_kernel_name}) - ' \
+                   f'{tr_prefix}MAB-{self.acq_optimizer.cont_optimizer} acq optim'
+        elif self.is_numeric:
+            name = f'GP ({self.model_numeric_kernel_name}) - {tr_prefix}{self.acq_optimizer.cont_optimizer} acq optim'
+        elif self.is_nominal:
+            name = f'GP ({model_cat_kernel_name}) - {tr_prefix}MAB acq optim'
         else:
-            if self.is_mixed:
-                name = f'GP ({self.model_numeric_kernel_name} and {self.model_cat_kernel_name}) - MAB acq optim'
-            elif self.is_numeric:
-                name = f'GP ({self.model_numeric_kernel_name}) - MAB acq optim'
-            elif self.is_nominal:
-                name = f'GP ({self.model_cat_kernel_name}) - MAB acq optim'
-            else:
-                raise ValueError()
+            raise ValueError()
 
         return name
 
@@ -78,7 +84,7 @@ class CoCaBO(BoBase):
                  acq_optim_cont_optimizer: str = 'sgd',
                  acq_optim_cont_lr: float = 3e-3,
                  acq_optim_cont_n_iter: int = 100,
-                 use_tr: bool = True,
+                 use_tr: bool = False,
                  tr_restart_acq_name: str = 'lcb',
                  tr_restart_n_cand: Optional[int] = None,
                  tr_min_num_radius: Optional[Union[int, float]] = None,
@@ -191,15 +197,15 @@ class CoCaBO(BoBase):
 
         # Initialise the acquisition optimizer
         acq_optim = MixedMabAcqOptimizer(search_space=search_space,
-                                    batch_size=acq_optim_batch_size,
-                                    max_n_iter=acq_optim_max_n_iter,
-                                    mab_resample_tol=acq_optim_mab_resample_tol,
-                                    n_cand=acq_optim_n_cand,
-                                    n_restarts=acq_optim_n_restarts,
-                                    cont_optimizer=acq_optim_cont_optimizer,
-                                    cont_lr=acq_optim_cont_lr,
-                                    cont_n_iter=acq_optim_cont_n_iter,
-                                    dtype=dtype)
+                                         batch_size=acq_optim_batch_size,
+                                         max_n_iter=acq_optim_max_n_iter,
+                                         mab_resample_tol=acq_optim_mab_resample_tol,
+                                         n_cand=acq_optim_n_cand,
+                                         n_restarts=acq_optim_n_restarts,
+                                         cont_optimizer=acq_optim_cont_optimizer,
+                                         cont_lr=acq_optim_cont_lr,
+                                         cont_n_iter=acq_optim_cont_n_iter,
+                                         dtype=dtype)
 
         if use_tr:
             # Initialise the trust region manager

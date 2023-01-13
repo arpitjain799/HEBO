@@ -95,7 +95,7 @@ class ComboGPModel(ModelBase):
         self.cholesky = None
         self.jitter = 0
 
-    def fit(self, x: torch.FloatTensor, y: torch.FloatTensor):
+    def fit(self, x: torch.FloatTensor, y: torch.FloatTensor, **kwargs):
 
         assert x.ndim == 2
         assert y.ndim == 2
@@ -523,6 +523,8 @@ class ComboEnsembleGPModel(EnsembleModelBase):
         for _ in range(self.num_models):
             self.combo_gp.fit(x, y)
             self.models.append(copy.deepcopy(self.combo_gp))
+
+        return
 
     def predict(self, x: torch.Tensor, **kwargs) -> (torch.Tensor, torch.Tensor):
 

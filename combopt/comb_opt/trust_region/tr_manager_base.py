@@ -32,12 +32,13 @@ class TrManagerBase(ABC):
         self._center = None
 
         self.search_space = search_space
-        self.data_buffer = DataBuffer(search_space, 1, dtype)
+        self.data_buffer = DataBuffer(num_dims=self.search_space.num_dims, num_out=1, dtype=dtype)
 
     def set_center(self, center: Optional[torch.Tensor]):
         if center is None:
             self._center = None
         else:
+            assert center.shape[-1] == self.search_space.num_dims, (center.shape[-1], self.search_space.num_dims)
             self._center = center.to(self.search_space.dtype)
 
     @property
@@ -93,14 +94,12 @@ class TrManagerBase(ABC):
         self.set_center(self.data_buffer.x_min)
 
     @abstractmethod
-    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer,
-                       best_y: Optional[Union[float, torch.Tensor]] = None, **kwargs) -> pd.DataFrame:
+    def suggest_new_tr(self, n_init: int, observed_data_buffer: DataBuffer, **kwargs) -> pd.DataFrame:
         """
         Function used to suggest a new trust region centre and neighbouring points
 
         :param n_init:
         :param observed_data_buffer: Data buffer containing all previously observed points
-        :param best_y: Used for evaluating some acquisition functions such as the Expected Improvement acquisition
         :param kwargs:
         :return:
         """

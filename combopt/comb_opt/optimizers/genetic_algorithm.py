@@ -14,6 +14,9 @@ import pandas as pd
 import torch
 
 from pymoo.config import Config
+
+from comb_opt.utils.plot_resource_utils import COLORS_SNS_10
+
 Config.warnings['not_compiled'] = False
 
 from pymoo.algorithms.base.genetic import GeneticAlgorithm
@@ -65,6 +68,15 @@ class PymooMixedVariableGaWithRepair(GeneticAlgorithm):
 
 
 class PymooGeneticAlgorithm(OptimizerBase):
+    color_1: str = COLORS_SNS_10[8]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return PymooGeneticAlgorithm.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return PymooGeneticAlgorithm.get_color_1()
 
     @property
     def name(self) -> str:
@@ -79,14 +91,14 @@ class PymooGeneticAlgorithm(OptimizerBase):
                  pop_size=50,
                  n_offsprings=None,
                  fixed_tr_manager: Optional[TrManagerBase] = None,
-                 store_all: bool = False,
+                 store_observations: bool = False,
                  tournament_selection: bool = True,
                  dtype: torch.dtype = torch.float32,
                  ):
 
         super(PymooGeneticAlgorithm, self).__init__(search_space, dtype)
 
-        self.store_all = store_all
+        self.store_observations = store_observations
         self.pop_size = pop_size
         self.n_offsprings = n_offsprings
         self.fixed_tr_manager = fixed_tr_manager
@@ -130,7 +142,7 @@ class PymooGeneticAlgorithm(OptimizerBase):
             y = y.cpu().numpy()
 
         # Append the data to the internal data buffer
-        if self.store_all:
+        if self.store_observations:
             self.data_buffer.append(self.search_space.transform(x), torch.tensor(y, dtype=self.dtype))
 
         # update best fx
@@ -222,6 +234,15 @@ class PymooGeneticAlgorithm(OptimizerBase):
 
 
 class CategoricalGeneticAlgorithm(OptimizerBase):
+    color_1: str = COLORS_SNS_10[8]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return PymooGeneticAlgorithm.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return PymooGeneticAlgorithm.get_color_1()
 
     @property
     def name(self) -> str:
@@ -449,6 +470,7 @@ class CategoricalGeneticAlgorithm(OptimizerBase):
         # proportional to the fitness of a sample
         for k in range(self.num_elite, self.num_parents):
             index = np.searchsorted(cum_prob, np.random.random())
+            assert index < len(x_sorted), (index, cum_prob)
             parents[k] = x_sorted[index].clone()
 
         # New population
@@ -614,6 +636,15 @@ class GeneticAlgorithm(OptimizerBase):
     sometimes outperform the Mixed Variable GA from pymoo by an order of magnitude. However, at the same time it can be
     approximately 50% slower.
     """
+    color_1: str = COLORS_SNS_10[8]
+
+    @staticmethod
+    def get_color_1() -> str:
+        return PymooGeneticAlgorithm.color_1
+
+    @staticmethod
+    def get_color() -> str:
+        return PymooGeneticAlgorithm.get_color_1()
 
     @property
     def name(self) -> str:
